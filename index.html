@@ -10867,6 +10867,69 @@ function paLogoHeaderBytes(){
    oficial PLANTILLA_PLAN_DE_ACCIÓN.docx (ver especificaciones_plantilla.md de la skill
    plan-accion-piscinas, secciones 1 a 19). Recibe el objeto `datosSede` construido en
    generarPlanAccion() y el módulo `docx` ya cargado (real, vía import() dinámico en el navegador). */
+/* ===================== SECCIÓN 4 — ANÁLISIS POR PARÁMETRO (agregado de sede) =====================
+   Reemplaza la redacción anterior (una subsección 4.X por PISCINA) por una subsección 4.X por
+   PARÁMETRO, agregando todas las piscinas/estructuras de la sede en un solo párrafo — igual al
+   formato de la plantilla objetivo. Reutiliza EXCLUSIVAMENTE los datos que paAnalizarPiscina()
+   ya calculó por piscina (filas[], con actualTxt/tendenciaTxt/estadoTxt/alerta ya resueltos):
+   no se agrega, modifica ni recalcula ningún valor aquí, solo se redacta en prosa agregada.
+
+   Reglas de redacción aplicadas (skill analisis-resultados):
+   - "Vigilancia ≠ Alerta": solo se nombra una piscina individualmente si está en alerta
+     (r.reforzado). Si todas cumplen, se reporta cumplimiento agregado sin desglosar.
+   - Sin especulación de causas no evidentes: se reporta el hecho (valor, tendencia, estado),
+     nunca una hipótesis de por qué ocurrió.
+   - Sin aperturas tipo "Se presenta..." / "Durante [mes] se registró...".
+   - Devuelve '' si ningún dato existe para ese parámetro en ninguna piscina (la sección entera
+     se omite, no se redacta con datos ausentes). */
+const PA_ORDEN_PARAMETROS = ['micro','ph','cl_libre','cl_comb','dur','alc','turb','isl','orp','irapi'];
+const PA_TITULO_PARAMETRO = {
+  micro:'Microbiológicos', ph:'pH', cl_libre:'Cloro libre', cl_comb:'Cloro combinado',
+  dur:'Dureza', alc:'Alcalinidad', turb:'Turbidez', isl:'ISL', orp:'ORP', irapi:'IRAPI'
+};
+
+function paTextoParametroAgregado(key, piscinasData){
+  if(key==='micro'){
+    const microKeysOk = ['micro_ecoli','micro_colif','micro_pseudo'];
+    const noConformes=[]; const heteroValues=[];
+    piscinasData.forEach(p=>{
+      (p.filas||[]).forEach(f=>{
+        if(f.key==='micro_het') heteroValues.push(`${p.nombre} ${f.actualTxt}`);
+        if(microKeysOk.includes(f.key) && f.alerta) noConformes.push(`${p.nombre} — ${f.label}: ${f.actualTxt}`);
+      });
+    });
+    if(!heteroValues.length && !noConformes.length) return '';
+    let txt = noConformes.length
+      ? `Resultado no conforme en: ${noConformes.join('; ')}. Requiere acción de refuerzo inmediata conforme a protocolo.`
+      : `Ausencia de E. Coli, Coliformes termotolerantes y Pseudomona aeruginosa en todas las estructuras evaluadas.`;
+    if(heteroValues.length) txt += ` Heterótrofos: ${heteroValues.join(', ')} UFC/mL.`;
+    return txt;
+  }
+  if(key==='irapi'){
+    const entries = piscinasData.map(p=>({nombre:p.nombre, fila:(p.filas||[]).find(f=>f.key==='irapi')})).filter(e=>e.fila);
+    if(!entries.length) return '';
+    const alertas = entries.filter(e=>e.fila.alerta);
+    if(!alertas.length){
+      return `El IRAPI se mantuvo en riesgo bajo en todas las estructuras evaluadas (${entries.map(e=>`${e.nombre} ${e.fila.actualTxt}`).join(', ')}).`;
+    }
+    const conformes = entries.filter(e=>!e.fila.alerta);
+    const restoTxt = conformes.length ? ` El resto de estructuras se mantuvo en riesgo bajo (${conformes.map(e=>`${e.nombre} ${e.fila.actualTxt}`).join(', ')}).` : '';
+    return `El IRAPI presentó ${alertas.map(e=>`${e.fila.estadoTxt.toLowerCase()} en ${e.nombre} (${e.fila.actualTxt})`).join('; ')}.${restoTxt}`;
+  }
+  // Parámetros numéricos estándar: ph, cl_libre, cl_comb, dur, alc, turb, isl, orp
+  const entries = piscinasData.map(p=>({nombre:p.nombre, fila:(p.filas||[]).find(f=>f.key===key)})).filter(e=>e.fila);
+  if(!entries.length) return '';
+  const label = PA_PARAM_LABEL[key];
+  const alertas = entries.filter(e=>e.fila.alerta);
+  if(!alertas.length){
+    return `${label} se mantuvo conforme en todas las estructuras evaluadas (${entries.map(e=>`${e.nombre} ${e.fila.actualTxt}`).join(', ')}).`;
+  }
+  const nombresAlerta = alertas.map(e=>`${e.nombre} (${e.fila.actualTxt}, ${e.fila.estadoTxt.toLowerCase()}, tendencia ${e.fila.tendenciaTxt.toLowerCase()})`).join('; ');
+  const conformes = entries.filter(e=>!e.fila.alerta);
+  const restoTxt = conformes.length ? ` El resto de estructuras se mantuvo conforme (${conformes.map(e=>`${e.nombre} ${e.fila.actualTxt}`).join(', ')}).` : '';
+  return `${label} requiere acción de refuerzo en ${nombresAlerta}.${restoTxt}`;
+}
+
 async function paConstruirDocumento(docx, datosSede){
   const {
     Document, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun,
@@ -11116,20 +11179,31 @@ async function paConstruirDocumento(docx, datosSede){
     ...bloqueGraficosGrupo(datosSede.graficosNormal),
     ...bloqueGraficosGrupo(datosSede.graficosCircuito) ];
 
-  // 4. Análisis de resultados (texto narrativo, SIN tablas ni filas naranja — sección 11)
+  // 4. Análisis de resultados — una subsección 4.X por PARÁMETRO (no por piscina), agregando
+  //    todas las estructuras de la sede en un solo párrafo. Igual a la plantilla objetivo.
   const analisis = [ tituloH1('4. Análisis de Resultados') ];
   let subIdx=0;
-  datosSede.piscinas.forEach(p=>{
+  PA_ORDEN_PARAMETROS.forEach(key=>{
+    const texto = paTextoParametroAgregado(key, datosSede.piscinas);
+    if(!texto) return; // sin datos para este parámetro en ninguna piscina: se omite la subsección
     subIdx++;
-    analisis.push(tituloH2(`4.${subIdx} ${p.nombre}${p.esCircuito?' (Circuito hídrico)':''}`));
-    (p.narrativa||[]).forEach(parr=> analisis.push(parrafoCuerpo(parr)));
-    // hallazgos puntuales con negrita selectiva por parámetro en alerta (sin tabla)
-    const alertas = (p.filas||[]).filter(f=>f.alerta);
-    if(alertas.length){
-      const texto = `Parámetros que requieren acción de refuerzo: ${alertas.map(f=>`${f.label} (${f.actualTxt}, ${f.estadoTxt.toLowerCase()})`).join(', ')}.`;
-      analisis.push(parrafoCuerpo([{text:texto, bold:true}]));
-    }
+    analisis.push(tituloH2(`4.${subIdx} ${PA_TITULO_PARAMETRO[key]}`));
+    analisis.push(parrafoCuerpo(texto));
   });
+  // Ácido cianúrico: solo aplica a sede Girardot, no tiene entrada en PA_ORDEN_PARAMETROS porque
+  // no es un parámetro universal (mismo criterio que ya aplicaba PA_SIN_PLANTILLA para acciones).
+  if(datosSede.sede==='Girardot'){
+    const entriesAcido = datosSede.piscinas.map(p=>({nombre:p.nombre, fila:(p.filas||[]).find(f=>f.key==='acidoc')})).filter(e=>e.fila);
+    if(entriesAcido.length){
+      subIdx++;
+      analisis.push(tituloH2(`4.${subIdx} Ácido cianúrico`));
+      const alertasAcido = entriesAcido.filter(e=>e.fila.alerta);
+      const textoAcido = !alertasAcido.length
+        ? `Ácido cianúrico se mantuvo conforme en todas las estructuras evaluadas (${entriesAcido.map(e=>`${e.nombre} ${e.fila.actualTxt}`).join(', ')}).`
+        : `Ácido cianúrico requiere acción de refuerzo en ${alertasAcido.map(e=>`${e.nombre} (${e.fila.actualTxt}, ${e.fila.estadoTxt.toLowerCase()})`).join('; ')}.`;
+      analisis.push(parrafoCuerpo(textoAcido));
+    }
+  }
 
   // 5. Conclusión
   const conclusion = [ tituloH1('5. Conclusión'), parrafoCuerpo(datosSede.conclusionGeneral, datosSede.parametrosReforzados.length?{}:{boldFull:true}) ];
