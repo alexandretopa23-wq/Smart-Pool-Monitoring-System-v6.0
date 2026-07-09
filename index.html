@@ -10933,6 +10933,52 @@ function paTextoParametroAgregado(key, piscinasData){
   return `${label} requiere acción de refuerzo en ${nombresAlerta}.${restoTxt}`;
 }
 
+/* ===================== ACCIONES REFORZADAS AGREGADAS (Secciones 5 y 6) =====================
+   El problema anterior: datosSede.parametrosReforzados era la lista CRUDA por-piscina
+   (accionesReforzadas de paAnalizarPiscina — una entrada por cada combinación piscina×parámetro,
+   con el detalle cuantitativo de paObservacionQuimica incluido), lo que producía párrafos largos
+   en negrilla repetidos por piscina en Secciones 5 y 6, en vez de un resumen por parámetro.
+
+   Esta función agrega por PARÁMETRO: una sola línea por cada parámetro con al menos una piscina
+   en alerta, listando brevemente cuáles estructuras están afectadas y reutilizando EXCLUSIVAMENTE
+   PA_PLANTILLAS[key].reforzado (texto operativo ya existente, sin redactar ninguna acción nueva).
+   No incluye el detalle cuantitativo de paObservacionQuimica aquí — ese nivel de detalle ya vive
+   en la Sección 4 (narrativa por parámetro); Secciones 5/6 se mantienen como resumen ejecutivo.
+
+   Devuelve [{key, texto}] — el `key` se usa para filtrar por bloque en Sección 6 (reemplaza el
+   matching frágil por substring de texto que existía antes, que no cubría micro_ecoli/colif/pseudo
+   porque esas claves no tienen entrada en PA_PARAM_LABEL). */
+function paAccionesReforzadasAgregadas(piscinasData){
+  const out = [];
+  ['ph','cl_libre','cl_comb','dur','alc','turb','isl','orp'].forEach(key=>{
+    const afectadas = piscinasData
+      .map(p=>({nombre:p.nombre, fila:(p.filas||[]).find(f=>f.key===key)}))
+      .filter(e=>e.fila && e.fila.alerta);
+    if(!afectadas.length || !PA_PLANTILLAS[key] || !PA_PLANTILLAS[key].reforzado) return;
+    const lista = afectadas.map(e=>`${e.nombre} (${e.fila.actualTxt})`).join(', ');
+    out.push({ key, texto: `${PA_PARAM_LABEL[key]}: ${lista}. ${PA_PLANTILLAS[key].reforzado}` });
+  });
+  const irapiAfectadas = piscinasData
+    .map(p=>({nombre:p.nombre, fila:(p.filas||[]).find(f=>f.key==='irapi')}))
+    .filter(e=>e.fila && e.fila.alerta);
+  if(irapiAfectadas.length && PA_PLANTILLAS.irapi && PA_PLANTILLAS.irapi.reforzado){
+    const lista = irapiAfectadas.map(e=>`${e.nombre} (${e.fila.actualTxt})`).join(', ');
+    out.push({ key:'irapi', texto: `IRAPI: ${lista}. ${PA_PLANTILLAS.irapi.reforzado}` });
+  }
+  const microAfectadas = [];
+  piscinasData.forEach(p=>{
+    (p.filas||[]).forEach(f=>{
+      if(['micro_ecoli','micro_colif','micro_pseudo'].includes(f.key) && f.alerta){
+        microAfectadas.push(`${p.nombre} — ${f.label}: ${f.actualTxt}`);
+      }
+    });
+  });
+  if(microAfectadas.length && PA_PLANTILLAS.microbiologico && PA_PLANTILLAS.microbiologico.reforzado){
+    out.push({ key:'microbiologico', texto: `Microbiológicos: ${microAfectadas.join('; ')}. ${PA_PLANTILLAS.microbiologico.reforzado}` });
+  }
+  return out;
+}
+
 async function paConstruirDocumento(docx, datosSede){
   const {
     Document, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun,
@@ -11209,15 +11255,17 @@ async function paConstruirDocumento(docx, datosSede){
   }
 
   // 5. Conclusión
-  const conclusion = [ tituloH1('5. Conclusión'), parrafoCuerpo(datosSede.conclusionGeneral, datosSede.parametrosReforzados.length?{}:{boldFull:true}) ];
-  if(datosSede.parametrosReforzados && datosSede.parametrosReforzados.length){
+  const accionesAgregadas = paAccionesReforzadasAgregadas(datosSede.piscinas);
+  const conclusion = [ tituloH1('5. Conclusión'), parrafoCuerpo(datosSede.conclusionGeneral, accionesAgregadas.length?{}:{boldFull:true}) ];
+  if(accionesAgregadas.length){
     conclusion.push(parrafoCuerpo('Parámetros que requieren acción de refuerzo este mes:', {boldFull:false}));
-    datosSede.parametrosReforzados.forEach(t=> conclusion.push(parrafoCuerpo(t, {boldFull:true})));
+    accionesAgregadas.forEach(a=> conclusion.push(parrafoCuerpo(a.texto, {boldFull:true})));
   }
 
-  // 6. Plan de acción — agrupar accionesReforzadas en los 5 bloques estándar de la plantilla
+  // 6. Plan de acción — agrupar accionesAgregadas (una por PARÁMETRO, no por piscina) en los
+  //    5 bloques estándar de la plantilla, filtrando por key (no por substring de texto)
   const BLOQUES_PA = [
-    { titulo:'1.  Optimización de la dosificación de desinfectante y microbiológicos', claves:['cl_libre','cl_comb','micro_het','micro_ecoli','micro_colif','micro_pseudo'] },
+    { titulo:'1.  Optimización de la dosificación de desinfectante y microbiológicos', claves:['cl_libre','cl_comb','microbiologico'] },
     { titulo:'2.  Control de pH, alcalinidad e ISL', claves:['ph','alc','isl'] },
     { titulo:'3.  Gestión de dureza y turbidez', claves:['dur','turb'] },
     { titulo:'4.  Prevención', claves:['orp','cond','tds','acidoc'] },
@@ -11226,12 +11274,11 @@ async function paConstruirDocumento(docx, datosSede){
   const planAccion = [ tituloH1('6. Plan de Acción') ];
   // Texto estándar estable: estructura fija de la plantilla, agregando las acciones de
   // refuerzo concretas (provenientes de PA_PLANTILLAS) cuando corresponda por bloque.
-  const todasAccionesTexto = datosSede.parametrosReforzados || [];
   BLOQUES_PA.forEach(bloque=>{
     planAccion.push(tituloH2(bloque.titulo));
-    const accionesDelBloque = todasAccionesTexto.filter(t=> bloque.claves.some(k=> t.toLowerCase().includes((PA_PARAM_LABEL[k]||k).toLowerCase())));
+    const accionesDelBloque = accionesAgregadas.filter(a=> bloque.claves.includes(a.key));
     if(accionesDelBloque.length){
-      accionesDelBloque.forEach((t,i)=> planAccion.push(itemAccion(`${bloque.titulo.match(/^\d+/)[0]}.${i+1} ${t}`, {boldFull:true})));
+      accionesDelBloque.forEach((a,i)=> planAccion.push(itemAccion(`${bloque.titulo.match(/^\d+/)[0]}.${i+1} ${a.texto}`, {boldFull:true})));
     } else {
       planAccion.push(itemAccion(`Mantener el tratamiento estándar habitual para los parámetros de este bloque, sin acciones de refuerzo adicionales este mes.`));
     }
