@@ -10567,6 +10567,80 @@ const PA_PARAM_LABEL = {
 };
 
 
+/* ===================== OBSERVACIÓN QUÍMICA ANALÍTICA POR PARÁMETRO =====================
+   Complementa (no reemplaza) el texto operativo fijo de PA_PLANTILLAS[key].reforzado con una
+   frase cuantitativa derivada de los valores REALES medidos en el mes evaluado. Reutiliza
+   exclusivamente funciones de cálculo ya existentes y validadas del dashboard (hoclPct,
+   alcObjetivo, igCD/igCA, igDiagnosticoISL, rango) — no crea ni modifica ningún modelo
+   analítico ni fuente de datos: solo redacta en lenguaje técnico el resultado de fórmulas
+   que el sistema ya calcula, para que la observación exportada sea concreta y trazable a
+   la química del agua en vez de un texto genérico. Devuelve '' si faltan datos para razonar
+   con seguridad (nunca inventa valores). No se usa en ningún cálculo, solo en redacción. */
+function paObservacionQuimica(key, actual, series, tipo){
+  if(actual==null || isNaN(actual)) return '';
+  const R = rango(tipo);
+  const idx = (series[key]||[]).length-1;
+  const at = (k)=> (series[k] && series[k][idx]!=null) ? series[k][idx] : null;
+  try{
+    switch(key){
+      case 'ph': {
+        const hocl = hoclPct(actual);
+        const alto = actual > R.ph[1], bajo = actual < R.ph[0];
+        let nota;
+        if(alto) nota = `un pH elevado reduce la fracción de ácido hipocloroso (HOCl) disponible a ~${Math.round(hocl)}% (frente a 91% en pH 6.5), comprometiendo la eficiencia de desinfección aunque la concentración total de cloro libre sea adecuada`;
+        else if(bajo) nota = `aunque un pH bajo favorece una mayor fracción de HOCl (~${Math.round(hocl)}%), incrementa el riesgo de corrosión de superficies/equipos y afecta el confort del bañista`;
+        else nota = `con una fracción de HOCl disponible de ~${Math.round(hocl)}%, dentro de norma pero con tendencia sostenida de riesgo`;
+        return ` El pH medido es ${actual.toFixed(2)}; ${nota}.`;
+      }
+      case 'cl_libre': {
+        const bajo = actual < R.cl_libre_ideal[0], alto = actual > R.cl_libre_ideal[1];
+        const ph = at('ph');
+        const hoclNota = ph!=null ? ` (con el pH medido de ${ph.toFixed(2)}, la fracción de HOCl disponible es de ~${Math.round(hoclPct(ph))}%)` : '';
+        const pos = bajo ? `por debajo del mínimo ideal (${R.cl_libre_ideal[0]} mg/L)` : (alto ? `por encima del máximo ideal (${R.cl_libre_ideal[1]} mg/L)` : `dentro de la banda ideal, aunque con tendencia sostenida de riesgo`);
+        return ` El cloro libre medido (${actual.toFixed(2)} mg/L) se ubica ${pos}${hoclNota}.`;
+      }
+      case 'cl_comb': {
+        const cl_libre = at('cl_libre');
+        const ratioTxt = (cl_libre!=null && cl_libre>0) ? ` — equivalente al ${Math.round(actual/cl_libre*100)}% del cloro libre medido` : '';
+        const sobre = actual > R.cl_comb_max;
+        return ` El cloro combinado medido (${actual.toFixed(2)} mg/L)${sobre? ` supera el límite operativo de ${R.cl_comb_max} mg/L` : ' presenta tendencia sostenida de riesgo'}${ratioTxt}, indicativo de acumulación de cloraminas por carga de bañistas y/o materia orgánica no oxidada por el desinfectante disponible.`;
+      }
+      case 'alc': {
+        const dur = at('dur');
+        const band = alcObjetivo(dur);
+        const mid = (band[0]+band[1])/2;
+        const delta = actual-mid;
+        return ` Con la dureza cálcica medida${dur!=null?` (${dur.toFixed(0)} mg/L)`:''}, la banda objetivo dinámica de alcalinidad es ${band[0]}–${band[1]} mg/L (no la banda fija general de referencia); el valor medido (${actual.toFixed(0)} mg/L) se aparta ${Math.abs(delta).toFixed(0)} mg/L de su punto medio, lo que puede arrastrar el ISL fuera de rango.`;
+      }
+      case 'dur': {
+        const delta = actual-R.dur_ideal;
+        const excede = actual > R.dur_max;
+        return ` La dureza cálcica medida (${actual.toFixed(0)} mg/L) se aparta ${Math.abs(delta).toFixed(0)} mg/L del valor ideal (${R.dur_ideal} mg/L)${excede?`, superando el máximo normativo (${R.dur_max} mg/L) con riesgo de incrustación en líneas de filtración`:'; el desvío incide en la banda objetivo dinámica de alcalinidad y en el balance del ISL'}.`;
+      }
+      case 'isl': {
+        const ph=at('ph'), dur=at('dur'), alc=at('alc');
+        if(ph==null || dur==null || alc==null) return ` El ISL actual (${actual.toFixed(2)}) se aparta del rango ideal (±0.3); se requiere revisar en conjunto pH, dureza cálcica y alcalinidad del mismo punto de muestreo para identificar el parámetro que arrastra el balance.`;
+        const cd = igCD(dur), ca = igCA(alc);
+        const diag = igDiagnosticoISL(ph, dur, alc, 27, cd, ca, 0);
+        const top = diag.accionables[0];
+        const dir = top.delta>0.02 ? 'empujando el balance hacia incrustante' : (top.delta<-0.02 ? 'empujando el balance hacia corrosivo' : 'con efecto marginal, dentro de tolerancia');
+        return ` El ISL actual (${actual.toFixed(2)}) está impulsado principalmente por ${top.nombre} (${top.desc}), ${dir}; se recomienda priorizar la corrección de este parámetro específico antes de ajustar los demás, para evitar sobrecorregir el balance.`;
+      }
+      case 'orp': {
+        const cl_libre = at('cl_libre');
+        const sobre = actual > R.orp_max;
+        return ` El ORP medido (${actual.toFixed(0)} mV)${sobre?` supera el umbral normativo de ${R.orp_max} mV`:' presenta tendencia sostenida de riesgo'}. Se recomienda contrastarlo con el cloro libre medido en el mismo punto${cl_libre!=null?` (${cl_libre.toFixed(2)} mg/L)`:''} y verificar la calibración de la sonda si la relación no es consistente con la curva teórica HOCl/ORP.`;
+      }
+      case 'turb': {
+        return ` La turbidez medida (${actual.toFixed(2)} NTU) ${actual>1?'supera el umbral operativo de referencia (1 NTU)':'presenta tendencia sostenida de riesgo aunque dentro del umbral'}, asociada a la eficiencia de filtración/retrolavado y a la carga de bañistas o materia particulada en el momento de la medición.`;
+      }
+      default: return '';
+    }
+  }catch(e){ return ''; } // ante cualquier dato inconsistente, no se redacta observación (nunca se inventa)
+}
+
+
+
 /* ===================== PLAN DE ACCIÓN — generación de gráficos (Chart.js) =====================
    Replica visualmente scripts/generar_graficos.py de la skill plan-accion-piscinas:
    mismos colores, mismas bandas, mismas líneas de límite, doble eje donde aplica.
@@ -11211,7 +11285,8 @@ function paAnalizarPiscina(piscina, series, mesesLbl, sede){
       alerta: r.reforzado
     });
     if(r.reforzado && PA_PLANTILLAS[key] && PA_PLANTILLAS[key].reforzado && !PA_SIN_PLANTILLA.includes(key)){
-      accionesReforzadas.push(`${piscina.nombre} — ${PA_PARAM_LABEL[key]}: ${r.motivo==='norma'?'resultado fuera de norma':(r.motivo==='tendencia'?'tendencia sostenida de riesgo':'fuera de norma y con tendencia de riesgo')}. ${PA_PLANTILLAS[key].reforzado}`);
+      const obsQuimica = paObservacionQuimica(key, actual, series, piscina.pool && piscina.pool.tipo);
+      accionesReforzadas.push(`${piscina.nombre} — ${PA_PARAM_LABEL[key]}: ${r.motivo==='norma'?'resultado fuera de norma':(r.motivo==='tendencia'?'tendencia sostenida de riesgo':'fuera de norma y con tendencia de riesgo')}.${obsQuimica} ${PA_PLANTILLAS[key].reforzado}`);
     }
   });
 
@@ -11223,7 +11298,11 @@ function paAnalizarPiscina(piscina, series, mesesLbl, sede){
     filas.push({ key:'irapi', label:'IRAPI', actualTxt: actualIrapi!=null?actualIrapi+'%':'—',
       tendenciaTxt: (()=>{ const vals=series.irapi.filter(x=>x!=null); if(vals.length<2) return 'Sin histórico suficiente'; const d=series.irapi[series.irapi.length-1]-vals[0]; return Math.abs(d)<0.5?'Estable':(d>0?'Ascendente':'Descendente'); })(),
       estadoTxt: band? band.lbl : '—', alerta: rIrapi.reforzado });
-    if(rIrapi.reforzado) accionesReforzadas.push(`${piscina.nombre} — IRAPI: ${band?band.lbl.toLowerCase():'riesgo elevado'} (${actualIrapi}%). ${PA_PLANTILLAS.irapi.reforzado}`);
+    if(rIrapi.reforzado){
+      const evIrapi = series.evMeses[series.evMeses.length-1];
+      const failsTxt = (evIrapi && evIrapi.irapi && evIrapi.irapi.fails && evIrapi.irapi.fails.length) ? ` Parámetro(s) que elevan el índice: ${evIrapi.irapi.fails.join(', ')}.` : '';
+      accionesReforzadas.push(`${piscina.nombre} — IRAPI: ${band?band.lbl.toLowerCase():'riesgo elevado'} (${actualIrapi}%).${failsTxt} ${PA_PLANTILLAS.irapi.reforzado}`);
+    }
   }
 
   // Microbiológicos: el último evalLab del mes actual indica conformidad
