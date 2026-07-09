@@ -5175,7 +5175,9 @@ function normSede(raw){
 /* Normaliza nombre de piscina + EQUIVALENCIAS solicitadas */
 function normPisc(raw, sede){
   let c = clean(raw);
-  c = c.replace(/\bhidromasaje\b/g,"romana");
+  // Equivalencias: Romana = Romanas = Hidromasaje = Hidromasajes (singular/plural indistinto)
+  c = c.replace(/\bromanas\b/g,"romana");
+  c = c.replace(/\bhidromasajes?\b/g,"romana");
   c = c.replace(/\biii\b/g,"3").replace(/\bii\b/g,"2").replace(/\bi\b/g,"1");
   c = c.replace(/\s+/g," ").trim();
   // CURSOS = SEMIOLIMPICA
@@ -12656,6 +12658,9 @@ const LEX_POOL_MAP_COMPLETE = {
   'recreativa 1 todo tipo': 'Recreativa 1', 'recreativa 1': 'Recreativa 1',
   'recreativa 2 todo tipo': 'Recreativa 2', 'recreativa 2': 'Recreativa 2',
   'recreativa': 'Recreativa',
+  // MOFLI - BIOPOLAB nombra las piscinas como "Mofli 1/2 - Todo tipo" en vez de "Recreativa 1/2"
+  'mofli 1 todo tipo': 'Recreativa 1', 'mofli 1': 'Recreativa 1',
+  'mofli 2 todo tipo': 'Recreativa 2', 'mofli 2': 'Recreativa 2',
   // Otras
   'infantil': 'Infantil', 'familiar': 'Familiar',
   'jacuzzi 1': 'Jacuzzi 1', 'jacuzzi 2': 'Jacuzzi 2', 'jacuzzi': 'Jacuzzi',
