@@ -5219,7 +5219,8 @@ function matchPool(sede,pisc){
    (ej. PI104007) en lugar del nombre completo. Este mapa traduce el código a su nombre
    antes de pasar por normProd, para que el matching por substring siga funcionando igual. */
 const COD_PRODUCTO = {
-  "pi104007":"BICARBONATO DE SODIO X 25 KG",
+  "pi104007":"BICARBONATO DE SODIO X 25 KG", /* código histórico (registros anteriores) */
+  "pi104313":"BICARBONATO DE SODIO X 25 KG", /* código vigente (nuevo, hoja de movimientos) */
   "qu102024":"HIPOCLORITO DE SODIO X CÑ",
   "pi104018":"HTH X TAMBOR 45 KL",
   "pi104023":"PH MINUS X 25 KG",
