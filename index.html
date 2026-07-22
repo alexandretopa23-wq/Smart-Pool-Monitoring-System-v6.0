@@ -70,7 +70,15 @@
   --fs-46:46px; --fs-48:48px; --fs-100:100px;
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:'Segoe UI Variable','Segoe UI Variable Display','Segoe UI',system-ui,-apple-system,'Roboto',Arial,Helvetica,sans-serif;color:var(--txt-d);font-size:var(--fs-14);-webkit-font-smoothing:antialiased;min-height:100vh;background-attachment:fixed;
+/* Corrige un desborde horizontal preexistente en viewports angostos: el
+   drawer lateral .ma-drawer usa position:fixed + transform:translateX(100%)
+   para quedar fuera de pantalla mientras está cerrado; en Chromium, un
+   transform sobre un elemento fixed puede seguir contando su geometría
+   post-transform dentro del scrollWidth del documento. No afecta el layout
+   normal (nada dentro de la app depende de scroll horizontal): solo evita
+   que ese drawer "invisible" abra una barra de scroll lateral fantasma. */
+html{ overflow-x:hidden; }
+body{margin:0;overflow-x:hidden;font-family:'Segoe UI Variable','Segoe UI Variable Display','Segoe UI',system-ui,-apple-system,'Roboto',Arial,Helvetica,sans-serif;color:var(--txt-d);font-size:var(--fs-14);-webkit-font-smoothing:antialiased;min-height:100vh;background-attachment:fixed;
   background:
     radial-gradient(1100px 560px at 100% -8%, rgba(230,81,0,.13), transparent 60%),
     radial-gradient(900px 520px at -10% 2%, rgba(66,66,66,.45), transparent 58%),
