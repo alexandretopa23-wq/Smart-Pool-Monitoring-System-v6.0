@@ -2685,21 +2685,49 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
 /* ---- IRAPI TOGGLE — botón "IRAPI" que colapsa/expande el hero de la
    tarjeta. Expandido por defecto (misma apariencia que antes de este
    cambio); al colapsar, el bloque .irapi-hero simplemente se oculta con
-   display:none — no se toca ningún dato, cálculo ni clasificación. */
+   display:none — no se toca ningún dato, cálculo ni clasificación.
+   El botón se muestra como una píldora flotante centrada, con efecto
+   glass + relieve 3D marcado (highlight superior, sombra interna inferior
+   y sombra de proyección), y el gauge queda centrado dentro de la tarjeta
+   en vez de pegado al borde izquierdo. */
 .irapi-wrap{ margin:2px 0 0; }
+.irapi-toggle-row{ display:flex; justify-content:center; margin:0 0 8px; }
 .irapi-toggle-btn{
-  display:flex; align-items:center; justify-content:space-between; width:100%;
-  background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.08);
-  border-radius:10px; padding:7px 12px; margin:0 0 0;
-  color:#94A3B8 !important; font-size:var(--fs-11-5); font-weight:700; letter-spacing:.3px;
-  cursor:pointer; transition:color .15s ease, border-color .15s ease, background .15s ease;
+  position:relative; display:inline-flex; align-items:center; gap:9px;
+  padding:9px 24px; border-radius:999px;
+  background:linear-gradient(180deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.05) 52%, rgba(255,255,255,.02) 100%);
+  backdrop-filter:blur(14px) saturate(170%);
+  -webkit-backdrop-filter:blur(14px) saturate(170%);
+  border:1px solid rgba(255,255,255,.24);
+  box-shadow:
+    0 1.5px 0 rgba(255,255,255,.4) inset,
+    0 -6px 11px rgba(0,0,0,.42) inset,
+    0 10px 22px rgba(0,0,0,.5),
+    0 3px 6px rgba(0,0,0,.35);
+  color:#F1F5F9 !important; font-size:var(--fs-11-5); font-weight:800;
+  letter-spacing:1px; text-transform:uppercase; white-space:nowrap;
+  cursor:pointer; transition:transform .16s ease, box-shadow .16s ease, background .16s ease;
 }
-.irapi-toggle-btn:hover{ color:#E2E8F0 !important; border-color:rgba(255,255,255,.16); background:rgba(255,255,255,.04); }
-.irapi-toggle-arrow{ font-size:10px; transition:transform .15s ease; opacity:.8; }
-.irapi-wrap.is-open .irapi-toggle-btn{ border-radius:10px 10px 0 0; border-bottom-color:transparent; }
+.irapi-toggle-btn:hover{
+  transform:translateY(-2px);
+  background:linear-gradient(180deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.07) 52%, rgba(255,255,255,.03) 100%);
+  box-shadow:
+    0 1.5px 0 rgba(255,255,255,.45) inset,
+    0 -6px 11px rgba(0,0,0,.42) inset,
+    0 15px 30px rgba(0,0,0,.55),
+    0 4px 8px rgba(0,0,0,.4);
+}
+.irapi-toggle-btn:active{
+  transform:translateY(1px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.28) inset,
+    0 -2px 6px rgba(0,0,0,.48) inset,
+    0 4px 10px rgba(0,0,0,.4);
+}
+.irapi-toggle-arrow{ font-size:9px; opacity:.85; transition:transform .16s ease; flex:none; }
 .irapi-wrap.is-open .irapi-toggle-arrow{ transform:rotate(180deg); }
 .irapi-wrap .irapi-hero{ display:none; }
-.irapi-wrap.is-open .irapi-hero{ display:block; margin-top:0 !important; border-radius:0 0 12px 12px !important; }
+.irapi-wrap.is-open .irapi-hero{ display:flex !important; justify-content:center; flex-wrap:wrap; text-align:left; }
 
 /* ---- FILAS DE PARÁMETROS (.prow) — micro-jerarquía por luminosidad ----
    La estructura (flex space-between + divisor) ya era idéntica al patrón
@@ -7238,9 +7266,11 @@ function cardHTML(e){
     <div class="cb">
       <div class="cmeta">${meta}</div>
       <div class="irapi-wrap is-open">
-        <button type="button" class="irapi-toggle-btn" onclick="toggleIrapiCard(this)" aria-expanded="true">
-          <span>IRAPI</span><span class="irapi-toggle-arrow">▾</span>
-        </button>
+        <div class="irapi-toggle-row">
+          <button type="button" class="irapi-toggle-btn" onclick="toggleIrapiCard(this)" aria-expanded="true">
+            <span>IRAPI</span><span class="irapi-toggle-arrow">▾</span>
+          </button>
+        </div>
         <div class="irapi-hero">${irapiGauge(e.irapi)}<div class="irapi-side"><div class="irapi-txt">${e.irapi?e.irapi.txt:'Sin medición'}</div><div class="irapi-sub">Índice de Riesgo IRAPI</div>${failTxt}</div></div>
       </div>
       ${balance}${desinf}${visual}
