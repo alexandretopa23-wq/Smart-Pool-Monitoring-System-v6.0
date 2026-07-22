@@ -2682,6 +2682,25 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
 .irapi-side .irapi-txt{ color:#FFFFFF !important; }
 .irapi-side .irapi-sub{ color:#64748B !important; }
 
+/* ---- IRAPI TOGGLE — botón "IRAPI" que colapsa/expande el hero de la
+   tarjeta. Expandido por defecto (misma apariencia que antes de este
+   cambio); al colapsar, el bloque .irapi-hero simplemente se oculta con
+   display:none — no se toca ningún dato, cálculo ni clasificación. */
+.irapi-wrap{ margin:2px 0 0; }
+.irapi-toggle-btn{
+  display:flex; align-items:center; justify-content:space-between; width:100%;
+  background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.08);
+  border-radius:10px; padding:7px 12px; margin:0 0 0;
+  color:#94A3B8 !important; font-size:var(--fs-11-5); font-weight:700; letter-spacing:.3px;
+  cursor:pointer; transition:color .15s ease, border-color .15s ease, background .15s ease;
+}
+.irapi-toggle-btn:hover{ color:#E2E8F0 !important; border-color:rgba(255,255,255,.16); background:rgba(255,255,255,.04); }
+.irapi-toggle-arrow{ font-size:10px; transition:transform .15s ease; opacity:.8; }
+.irapi-wrap.is-open .irapi-toggle-btn{ border-radius:10px 10px 0 0; border-bottom-color:transparent; }
+.irapi-wrap.is-open .irapi-toggle-arrow{ transform:rotate(180deg); }
+.irapi-wrap .irapi-hero{ display:none; }
+.irapi-wrap.is-open .irapi-hero{ display:block; margin-top:0 !important; border-radius:0 0 12px 12px !important; }
+
 /* ---- FILAS DE PARÁMETROS (.prow) — micro-jerarquía por luminosidad ----
    La estructura (flex space-between + divisor) ya era idéntica al patrón
    usado en .ie-esf-row; solo se homologa el contraste: etiqueta (pH,
@@ -7218,7 +7237,12 @@ function cardHTML(e){
     <div class="ch"><span class="nm">${e.pool.piscina}</span>${riskChip(e.irapi)}</div>
     <div class="cb">
       <div class="cmeta">${meta}</div>
-      <div class="irapi-hero">${irapiGauge(e.irapi)}<div class="irapi-side"><div class="irapi-txt">${e.irapi?e.irapi.txt:'Sin medición'}</div><div class="irapi-sub">Índice de Riesgo IRAPI</div>${failTxt}</div></div>
+      <div class="irapi-wrap is-open">
+        <button type="button" class="irapi-toggle-btn" onclick="toggleIrapiCard(this)" aria-expanded="true">
+          <span>IRAPI</span><span class="irapi-toggle-arrow">▾</span>
+        </button>
+        <div class="irapi-hero">${irapiGauge(e.irapi)}<div class="irapi-side"><div class="irapi-txt">${e.irapi?e.irapi.txt:'Sin medición'}</div><div class="irapi-sub">Índice de Riesgo IRAPI</div>${failTxt}</div></div>
+      </div>
       ${balance}${desinf}${visual}
       ${insight}
       ${dose}
@@ -9912,6 +9936,15 @@ function toggleSeqCalc(btn){
    clase CSS sobre un bloque de texto estático del HTML. */
 function toggleModHelp(btn){
   const wrap=btn.closest('.modhelp');
+  const open=wrap.classList.toggle('is-open');
+  btn.setAttribute('aria-expanded', open?'true':'false');
+}
+/* Colapsa/expande el bloque .irapi-hero dentro de una tarjeta de piscina
+   (módulo Monitoreo). Expandido por defecto en cada render; solo alterna
+   una clase CSS sobre el contenedor — no modifica ningún dato ni cálculo. */
+function toggleIrapiCard(btn){
+  const wrap=btn.closest('.irapi-wrap');
+  if(!wrap) return;
   const open=wrap.classList.toggle('is-open');
   btn.setAttribute('aria-expanded', open?'true':'false');
 }
