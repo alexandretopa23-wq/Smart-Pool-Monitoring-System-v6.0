@@ -2729,6 +2729,46 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
 .irapi-wrap .irapi-hero{ display:none; }
 .irapi-wrap.is-open .irapi-hero{ display:flex !important; justify-content:center; flex-wrap:wrap; text-align:left; }
 
+/* ---- GRÁFICAS DE TENDENCIA POR PARÁMETRO (Monitoreo) ----
+   Filas de parámetro clicables (.prow-clickable, ver prow()) que abren un panel
+   flotante (pchOpenChart) con la tendencia histórica de ESE parámetro en la
+   piscina, agregada según el rango activo del Marco Analítico. No se modifica
+   ningún cálculo, estado ni fuente de datos — solo lee MED[] y promedia por bucket. */
+.prow-clickable{ cursor:pointer; transition:background .13s ease, transform .13s ease; border-radius:8px; margin:0 -6px !important; padding-left:6px !important; padding-right:6px !important; }
+.prow-clickable:hover{ background:rgba(255,123,51,.08); transform:translateX(2px); }
+.prow-clickable:hover .pk{ color:#E2E8F0 !important; }
+.prow-chart-ic{ opacity:.35; font-size:10px; margin-right:5px; font-style:normal; transition:opacity .13s ease; }
+.prow-clickable:hover .prow-chart-ic{ opacity:1; }
+
+.pch-float-backdrop{ position:fixed; inset:0; pointer-events:none; z-index:900; }
+.pch-panel{
+  position:fixed; width:420px; max-width:calc(100vw - 24px); pointer-events:auto; z-index:901;
+  background:linear-gradient(165deg, rgba(35,45,68,.72) 0%, rgba(16,24,42,.82) 100%);
+  backdrop-filter:blur(26px) saturate(190%); -webkit-backdrop-filter:blur(26px) saturate(190%);
+  border:1px solid rgba(255,255,255,.16); border-radius:20px;
+  box-shadow:
+    0 2px 0 rgba(255,255,255,.16) inset,
+    0 -10px 22px rgba(0,0,0,.5) inset,
+    0 30px 60px rgba(0,0,0,.55),
+    0 10px 24px rgba(0,0,0,.4);
+  opacity:0; transform:scale(.92) translateY(10px); transition:opacity .18s ease, transform .18s ease;
+}
+.pch-panel.show{ opacity:1; transform:scale(1) translateY(0); }
+.pch-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding:16px 18px 12px; cursor:grab; user-select:none; border-bottom:1px solid rgba(255,255,255,.08); }
+.pch-head:active{ cursor:grabbing; }
+.pch-title{ font-size:14.5px; font-weight:800; color:#fff; margin:0 0 3px; }
+.pch-sub{ font-size:11px; color:#9AA6BC; margin:0; }
+.pch-badge{ display:inline-block; margin-top:7px; font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; padding:3px 9px; border-radius:999px; background:rgba(255,123,51,.16); border:1px solid rgba(255,123,51,.4); color:#FFB37A; }
+.pch-close{ flex:none; width:28px; height:28px; border-radius:9px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:#CBD5E1; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .13s ease; }
+.pch-close:hover{ background:rgba(248,113,113,.18); border-color:rgba(248,113,113,.4); color:#FCA5A5; }
+.pch-body{ padding:14px 16px 8px; }
+.pch-chartbox{ position:relative; background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:12px 10px 6px; box-shadow:inset 0 1px 4px rgba(0,0,0,.3); }
+.pch-legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:10.5px; color:#9AA6BC; margin:0 0 8px; padding:0 2px; }
+.pch-legend span{ display:inline-flex; align-items:center; gap:5px; }
+.pch-legend i{ width:16px; height:2px; display:inline-block; border-radius:2px; }
+.pch-foot{ padding:10px 18px 16px; font-size:10.5px; color:#6B7688; border-top:1px solid rgba(255,255,255,.06); margin-top:10px; line-height:1.5; }
+.pch-foot b{ color:#9AA6BC; }
+
 /* ---- FILAS DE PARÁMETROS (.prow) — micro-jerarquía por luminosidad ----
    La estructura (flex space-between + divisor) ya era idéntica al patrón
    usado en .ie-esf-row; solo se homologa el contraste: etiqueta (pH,
@@ -7090,7 +7130,12 @@ function trendHTML(cur,hist,dec,thr){
 /* ---------- helpers de tarjeta ---------- */
 function stCls(st){return st==='v'?'good':(st==='r'?'bad':((st==='o'||st==='y')?'warn':''));}
 function mr(k,val,st,suf=""){const cls={v:"good",o:"warn",r:"bad",y:"warn",nd:""};return `<div class="mrow"><span class="k">${k}</span><span class="val ${cls[st]||''}">${val}${suf}</span></div>`;}
-function prow(label,valTxt,st,trend){return `<div class="prow"><span class="pk">${label}</span><span class="pmid"><span class="pv ${stCls(st)}">${valTxt}</span>${trend||""}</span></div>`;}
+function prow(label,valTxt,st,trend,chartArgs){
+  const clk = chartArgs ? ` onclick="pchOpenChart('${chartArgs.key}','${chartArgs.pk}',this)"` : '';
+  const cls = chartArgs ? ' prow-clickable' : '';
+  const icon = chartArgs ? '<i class="prow-chart-ic">📈</i>' : '';
+  return `<div class="prow${cls}"${clk}><span class="pk">${icon}${label}</span><span class="pmid"><span class="pv ${stCls(st)}">${valTxt}</span>${trend||""}</span></div>`;
+}
 function pgroup(title,rows){return `<div class="pgroup"><div class="pgroup-h">${title}</div>${rows}</div>`;}
 function riskChip(ir){const lvl=ir&&ir.lvl?ir.lvl:'nd';const txt=ir&&ir.txt?ir.txt:'Sin medición';return `<span class="rchip ${lvl}">${txt}</span>`;}
 const FAIL_LBL={cl_libre:"Cloro libre",orp:"ORP",ph:"pH",turb:"Turbidez",cya:"CYA"};
@@ -7207,20 +7252,21 @@ function cardHTML(e){
   const Valc=a.alc_prom!=null?a.alc_prom:a.alc_ult;
   const Vdur=a.dur_prom!=null?a.dur_prom:a.dur_ult;
   const Visl=a.isl_prom!=null?a.isl_prom:a.isl_ult;
+  const pk=poolKey(e.pool.sede,e.pool.piscina);
 
   const balance=pgroup("Balance químico",
-    prow("pH",vt(a.ph,2,""),e.estados.ph,trendHTML(a.ph,histMeanSC(e.pool,'ph_sc'),2,.05))+
-    prow("Alcalinidad",vt(Valc,0," ppm"),e.estados.alc,trendHTML(Valc,histMeanNum(e.pool,'alc'),0,5))+
-    prow("Dureza",vt(Vdur,0," ppm"),e.estados.dur,trendHTML(Vdur,histMeanNum(e.pool,'dur'),0,5))+
-    prow("ISL",vt(Visl,2,""),e.estados.isl,trendHTML(Visl,histMeanNum(e.pool,'isl'),2,.05))+
-    (e.pool.sede==="Girardot"?prow("Ác. cianúrico",vt(a.acidoc,0," ppm"),e.estados.cya,trendHTML(a.acidoc,histMeanNum(e.pool,'acidoc'),0,2)):""));
+    prow("pH",vt(a.ph,2,""),e.estados.ph,trendHTML(a.ph,histMeanSC(e.pool,'ph_sc'),2,.05),{key:'ph',pk})+
+    prow("Alcalinidad",vt(Valc,0," ppm"),e.estados.alc,trendHTML(Valc,histMeanNum(e.pool,'alc'),0,5),{key:'alc',pk})+
+    prow("Dureza",vt(Vdur,0," ppm"),e.estados.dur,trendHTML(Vdur,histMeanNum(e.pool,'dur'),0,5),{key:'dur',pk})+
+    prow("ISL",vt(Visl,2,""),e.estados.isl,trendHTML(Visl,histMeanNum(e.pool,'isl'),2,.05),{key:'isl',pk})+
+    (e.pool.sede==="Girardot"?prow("Ác. cianúrico",vt(a.acidoc,0," ppm"),e.estados.cya,trendHTML(a.acidoc,histMeanNum(e.pool,'acidoc'),0,2),{key:'cya',pk}):""));
   const desinf=pgroup("Desinfección",
-    prow("Cloro libre",vt(a.cl_libre,2," ppm"),e.estados.cl_libre,trendHTML(a.cl_libre,histMeanSC(e.pool,'cll_sc'),2,.1))+
-    prow("Cloro combinado",vt(a.cl_comb,2," ppm"),e.estados.cl_comb,trendHTML(a.cl_comb,histMeanSC(e.pool,'clc_sc'),2,.05))+
-    prow("ORP",vt(a.orp,0," mV"),e.estados.orp,trendHTML(a.orp,histMeanNum(e.pool,'orp'),0,5)));
+    prow("Cloro libre",vt(a.cl_libre,2," ppm"),e.estados.cl_libre,trendHTML(a.cl_libre,histMeanSC(e.pool,'cll_sc'),2,.1),{key:'cl_libre',pk})+
+    prow("Cloro combinado",vt(a.cl_comb,2," ppm"),e.estados.cl_comb,trendHTML(a.cl_comb,histMeanSC(e.pool,'clc_sc'),2,.05),{key:'cl_comb',pk})+
+    prow("ORP",vt(a.orp,0," mV"),e.estados.orp,trendHTML(a.orp,histMeanNum(e.pool,'orp'),0,5),{key:'orp',pk}));
   const visual=pgroup("Calidad visual",
-    prow("Turbidez",a.turb==null?SD:v(a.turb,1)+" NTU",e.estados.turb,trendHTML(a.turb,histMeanNum(e.pool,'turb_num'),1,.2))+
-    prow("Temperatura",vt(a.temp,1," °C"),null,trendHTML(a.temp,histMeanSC(e.pool,'tmp_sc'),1,.3)));
+    prow("Turbidez",a.turb==null?SD:v(a.turb,1)+" NTU",e.estados.turb,trendHTML(a.turb,histMeanNum(e.pool,'turb_num'),1,.2),{key:'turb',pk})+
+    prow("Temperatura",vt(a.temp,1," °C"),null,trendHTML(a.temp,histMeanSC(e.pool,'tmp_sc'),1,.3),{key:'temp',pk}));
 
   const insight=`<div class="insight"><div class="pgroup-h">Proyección · fin del rango</div>
     ${insightRow("Alcalinidad",e.atBase,e.at_proy,0," ppm",e.at_proy_msg)}
@@ -9978,6 +10024,213 @@ function toggleIrapiCard(btn){
   const open=wrap.classList.toggle('is-open');
   btn.setAttribute('aria-expanded', open?'true':'false');
 }
+
+/* =================================================================
+   GRÁFICAS DE TENDENCIA POR PARÁMETRO (módulo Monitoreo)
+   ─────────────────────────────────────────────────────────────────
+   Al picar cualquier fila de parámetro de una tarjeta (ver prow() /
+   cardHTML()), se abre un panel flotante con la tendencia histórica de
+   ESE parámetro en esa piscina. La agregación temporal depende SOLO del
+   Marco Analítico activo (getFilt()) — no existe un filtro propio del
+   gráfico. Reglas de agregación (aprobadas en el mockup):
+     ≤31 días → diaria · 32–90 → semanal · 91–120 → quincenal · >120 → mensual
+   Los valores por día YA vienen promediados entre las 3 muestras (ver
+   parseMediciones/*_sc); esta capa solo promedia esos valores diarios
+   por bucket. No modifica parseMediciones, evalPool ni ningún otro
+   cálculo protegido — lee MED[] directamente, de solo lectura.
+   Prefijo "pch" (param chart) para no colisionar con nada existente.
+   ================================================================= */
+const PCH_DEF = {
+  ph:       {label:'pH',              field:'ph',       unit:'',     dec:2},
+  alc:      {label:'Alcalinidad',     field:'alc',      unit:' ppm', dec:0},
+  dur:      {label:'Dureza',          field:'dur',      unit:' ppm', dec:0},
+  isl:      {label:'ISL',             field:'isl',      unit:'',     dec:2},
+  cya:      {label:'Ác. cianúrico',   field:'acidoc',   unit:' ppm', dec:0},
+  cl_libre: {label:'Cloro libre',     field:'cl_libre', unit:' ppm', dec:2},
+  cl_comb:  {label:'Cloro combinado', field:'cl_comb',  unit:' ppm', dec:2},
+  orp:      {label:'ORP',             field:'orp',      unit:' mV',  dec:0},
+  turb:     {label:'Turbidez',        field:'turb_num', unit:' NTU', dec:1},
+  temp:     {label:'Temperatura',     field:'temp',     unit:' °C',  dec:1}
+};
+const PCH_MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function pchShort(d){ return `${d.getDate()} ${PCH_MESES[d.getMonth()]}`; }
+function pchFull(d){ return `${d.getDate()} ${PCH_MESES[d.getMonth()]} ${d.getFullYear()}`; }
+function pchGranularity(days){
+  if(days<=31) return 'day';
+  if(days<=90) return 'week';
+  if(days<=120) return 'biweek';
+  return 'month';
+}
+const PCH_GRAN_LABEL = {day:'Diaria', week:'Semanal', biweek:'Quincenal', month:'Mensual'};
+const PCH_GRAN_SERIE = {day:'Promedio diario', week:'Promedio semana', biweek:'Promedio quincena', month:'Promedio mensual'};
+
+/* Agrega MED[] de una piscina/parámetro entre [desde,hasta]. Etiquetas de mes
+   a dos líneas (mes + año pequeño solo en la primera y en cada cambio de año)
+   para que quepan todos los meses sin solaparse (validado hasta 12+ meses). */
+function pchBucketize(pool, paramKey, desde, hasta){
+  const def = PCH_DEF[paramKey];
+  const rows = MED.filter(m=>m.pool===pool && m[def.field]!=null && inRange(m.fecha,{desde,hasta}));
+  const days = Math.max(1, Math.round((hasta-desde)/86400000)+1);
+  const mode = pchGranularity(days);
+  const buckets = new Map();
+  function keyFor(d){
+    if(mode==='day') return d.toISOString().slice(0,10);
+    if(mode==='week'){ const idx=Math.floor((d-desde)/86400000/7); return 'w'+idx; }
+    if(mode==='biweek'){ const idx=Math.floor((d-desde)/86400000/14); return 'q'+idx; }
+    return d.getFullYear()+'-'+d.getMonth();
+  }
+  function labelFor(d,k){
+    if(mode==='day') return pchShort(d);
+    if(mode==='week'){ const idx=parseInt(k.slice(1)); const s=new Date(desde); s.setDate(desde.getDate()+idx*7); const e2=new Date(s); e2.setDate(s.getDate()+6); return `${pchShort(s)}–${pchShort(e2)}`; }
+    if(mode==='biweek'){ const idx=parseInt(k.slice(1)); const s=new Date(desde); s.setDate(desde.getDate()+idx*14); const e2=new Date(s); e2.setDate(s.getDate()+13); return `${pchShort(s)}–${pchShort(e2)}`; }
+    return PCH_MESES[d.getMonth()].charAt(0).toUpperCase()+PCH_MESES[d.getMonth()].slice(1);
+  }
+  rows.forEach(m=>{
+    const k=keyFor(m.fecha);
+    if(!buckets.has(k)) buckets.set(k,{label:labelFor(m.fecha,k), sum:0, n:0, order:m.fecha});
+    const b=buckets.get(k); b.sum+=m[def.field]; b.n++;
+  });
+  const sorted=Array.from(buckets.values()).sort((a,b)=>a.order-b.order);
+  if(mode==='month'){
+    sorted.forEach((b,i)=>{
+      const yr=b.order.getFullYear();
+      if(i===0 || yr!==sorted[i-1].order.getFullYear()) b.label=[b.label, `'${(''+yr).slice(2)}`];
+    });
+  }
+  const out=sorted.map(b=>({label:b.label, value:Math.round((b.sum/b.n)*1000)/1000, n:b.n}));
+  return {mode, buckets:out, totalPoints:rows.length};
+}
+
+let pchActive=null, pchChart=null, pchPanel=null;
+
+function pchBackdrop(){
+  let bd=document.getElementById('pchFloatBackdrop');
+  if(!bd){ bd=document.createElement('div'); bd.id='pchFloatBackdrop'; bd.className='pch-float-backdrop'; document.body.appendChild(bd); }
+  return bd;
+}
+async function pchOpenChart(paramKey, pkStr, rowEl){
+  const pool = POOL_INDEX[pkStr];
+  if(!pool){ return; }
+  pchActive = {paramKey, pool};
+  if(!window.Chart){
+    try{ await loadScript("https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"); }
+    catch(e){ alert('No se pudo cargar la librería de gráficos (Chart.js requiere conexión a internet).'); return; }
+  }
+  if(!pchPanel){
+    pchPanel=document.createElement('div');
+    pchPanel.className='pch-panel';
+    pchPanel.innerHTML=`
+      <div class="pch-head" id="pchHead">
+        <div>
+          <p class="pch-title" id="pchTitle"></p>
+          <p class="pch-sub" id="pchSub"></p>
+          <span class="pch-badge" id="pchBadge"></span>
+        </div>
+        <button class="pch-close" onclick="pchClose()" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="pch-body">
+        <div class="pch-legend">
+          <span><i style="background:#FF7B33"></i><span id="pchLegendMain">Promedio</span></span>
+          <span><i style="background:#8B95A8; opacity:.6"></i>Rango ideal (referencia)</span>
+        </div>
+        <div class="pch-chartbox"><canvas id="pchCanvas" height="220"></canvas></div>
+      </div>
+      <div class="pch-foot" id="pchFoot"></div>`;
+    pchBackdrop().appendChild(pchPanel);
+    pchMakeDraggable(pchPanel, pchPanel.querySelector('#pchHead'));
+  }
+  pchPositionPanel(rowEl);
+  requestAnimationFrame(()=>pchPanel.classList.add('show'));
+  pchDrawChart();
+}
+function pchClose(){
+  if(pchPanel) pchPanel.classList.remove('show');
+  pchActive=null;
+  if(pchChart){ pchChart.destroy(); pchChart=null; }
+}
+function pchPositionPanel(rowEl){
+  if(!rowEl || !pchPanel) return;
+  const card = rowEl.closest('.card');
+  const anchor = card ? card.getBoundingClientRect() : rowEl.getBoundingClientRect();
+  let left = anchor.right + 20;
+  let top = Math.max(16, anchor.top);
+  if(left + 420 > window.innerWidth) left = Math.max(16, anchor.left - 436);
+  if(left < 16) left = Math.max(16, window.innerWidth - 436);
+  if(top + 420 > window.innerHeight) top = Math.max(16, window.innerHeight - 420);
+  pchPanel.style.left = left+'px';
+  pchPanel.style.top = top+'px';
+}
+function pchMakeDraggable(panel, handle){
+  let sx=0, sy=0, ox=0, oy=0, dragging=false;
+  handle.addEventListener('mousedown', e=>{
+    if(e.target.closest('.pch-close')) return;
+    dragging=true; sx=e.clientX; sy=e.clientY;
+    const r=panel.getBoundingClientRect(); ox=r.left; oy=r.top;
+    document.body.style.userSelect='none';
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    panel.style.left = (ox + (e.clientX-sx)) + 'px';
+    panel.style.top = (oy + (e.clientY-sy)) + 'px';
+  });
+  window.addEventListener('mouseup', ()=>{ dragging=false; document.body.style.userSelect=''; });
+}
+/* Redibuja el gráfico activo con el Marco Analítico actual. Si no hay rango
+   definido (Todo el histórico), usa el propio rango de datos de la piscina. */
+function pchDrawChart(){
+  if(!pchActive || !window.Chart) return;
+  const {paramKey, pool} = pchActive;
+  const def = PCH_DEF[paramKey];
+  const f = getFilt();
+  const poolRows = MED.filter(m=>m.pool===pool && m[def.field]!=null);
+  if(!poolRows.length){
+    document.getElementById('pchFoot').textContent = 'Sin mediciones registradas de este parámetro para esta piscina.';
+    return;
+  }
+  const desde = f.desde || poolRows.reduce((mn,m)=>m.fecha<mn?m.fecha:mn, poolRows[0].fecha);
+  const hastaRaw = f.hasta || poolRows.reduce((mx,m)=>m.fecha>mx?m.fecha:mx, poolRows[0].fecha);
+  const hasta = new Date(hastaRaw); hasta.setHours(23,59,59,999);
+
+  const agg = pchBucketize(pool, paramKey, desde, hasta);
+
+  document.getElementById('pchTitle').textContent = def.label+' · '+pool.piscina;
+  document.getElementById('pchSub').textContent = `${pchFull(desde)} – ${pchFull(hasta)} · Marco Analítico`;
+  document.getElementById('pchBadge').textContent = PCH_GRAN_LABEL[agg.mode]+' · '+agg.buckets.length+' puntos';
+  document.getElementById('pchLegendMain').textContent = PCH_GRAN_SERIE[agg.mode];
+  document.getElementById('pchFoot').innerHTML =
+    `<b>${agg.totalPoints}</b> mediciones diarias promediadas en <b>${agg.buckets.length}</b> puntos (${PCH_GRAN_LABEL[agg.mode].toLowerCase()}), según el Marco Analítico activo.`;
+
+  const labels = agg.buckets.map(b=>b.label);
+  const values = agg.buckets.map(b=>b.value);
+
+  const ctx = document.getElementById('pchCanvas').getContext('2d');
+  if(pchChart) pchChart.destroy();
+  pchChart = new Chart(ctx,{
+    type:'line',
+    data:{ labels, datasets:[
+      { label:PCH_GRAN_SERIE[agg.mode], data:values, borderColor:'#FF7B33', backgroundColor:'#FF7B3322',
+        tension:.3, spanGaps:true, pointRadius:3, pointBackgroundColor:'#FF7B33', borderWidth:2.5, fill:true }
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{ legend:{display:false},
+        tooltip:{ backgroundColor:'#1a1a1a', borderColor:'#3a3a3a', borderWidth:1, titleColor:'#fff', bodyColor:'#E8EAED',
+          callbacks:{ label:(item)=> `${PCH_GRAN_SERIE[agg.mode]}: ${item.formattedValue}${def.unit}` } } },
+      scales:{
+        x:{ ticks:{color:'#E8EAED', font:{size:10, weight:'600'}, maxRotation:0, autoSkip:true}, grid:{color:'rgba(255,255,255,.06)'} },
+        y:{ ticks:{color:'#E8EAED', font:{size:10, weight:'600'}}, grid:{color:'rgba(255,255,255,.10)'} }
+      }
+    }
+  });
+}
+/* Llamada desde renderAll() tras cualquier cambio del Marco Analítico: si hay
+   un panel abierto, se redibuja en el sitio con el nuevo rango — no hace
+   falta cerrarlo y volver a abrirlo. */
+function pchRefreshIfOpen(){
+  if(pchActive) pchDrawChart();
+}
+
 function labCtxNote(ctx){
   const {rangeTxt,entregaTxt,multiLab,totLab,sinContraN}=ctx;
   return `<div class="note" style="margin:3px 0 11px">${rangeTxt}. Fecha(s) de entrega: <b>${entregaTxt}</b>. Indicadores calculados sobre ${multiLab?`el <b>promedio del comportamiento mensual</b> de `:''}${totLab} resultado${totLab===1?'':'s'} de laboratorio${multiLab?' (varios meses promediados por piscina dentro del rango)':' en el rango'}.${sinContraN>0?` <b>${sinContraN}</b> piscina${sinContraN===1?'':'s'} sin contramuestreo (Caso A): se reporta cumplimiento y clasificación sin ICO.`:''}</div>`;
@@ -14453,6 +14706,7 @@ function renderAll(){
   renderTablero(); renderComp(); renderConsumo(); renderCal(); renderDiag(); renderParam(); renderLab(); renderActivos();
   updateSystemState();
   updateFilterSummary();
+  if(typeof pchRefreshIfOpen==='function') pchRefreshIfOpen();
   /* La configuración pasa a segundo plano: al cargar datos por primera vez, colapsa el drawer de conexión */
   const dr=document.getElementById("connDrawer");
   if(dr && dr.open && !_connAutoClosed){ dr.open=false; _connAutoClosed=true; }
