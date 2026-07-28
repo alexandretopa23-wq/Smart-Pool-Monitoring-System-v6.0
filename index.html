@@ -4682,9 +4682,9 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
         <span><i class="dot nd"></i> Sin medición</span>
         <span class="lg-note">· IRAPI ponderado: Cl libre 20% · ORP 15% · pH 10% · Turbidez 5% · CYA 5% (Girardot). Cloro combinado no pondera.</span>
         <div class="lg-right">
-          <button class="btn-hide-sedes" id="btnHideSedes" onclick="toggleSedesMonitoreo()">
+          <button class="btn-hide-sedes" id="btnHideSedes" onclick="toggleSedesMonitoreo()" title="Colapsa las tarjetas de cada sede, dejando solo el nombre y el resumen de estados — expande una a una según necesites">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" id="iconHideSedes"><path d="M1 7L5 3L9 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <span id="lblHideSedes">Ocultar sedes</span>
+            <span id="lblHideSedes">Ocultar todas</span>
           </button>
           <button class="gh sm" id="btnProj" onclick="toggleProj()">Mostrar proyección pH/cloro</button>
         </div>
@@ -5557,6 +5557,11 @@ let DIAG={med:null,ins:null,ot:null,unmapped_prod:new Set(),unmapped_pool:new Se
 let autoTimer=null, lastLinks={med:"",ins:"",ot:"",lab:"",contra:"",infra:""};
 let SHOW_PROJ=false;
 let SHOW_ISL_DETAIL=false, SHOW_DUR_DETAIL=false, SHOW_EFIC=false, SHOW_LAB=false;
+/* Recuerda si el usuario colapsó todas las tarjetas de sede (botón "Ocultar
+   todas" en Monitoreo), para que ese estado sobreviva a un re-render por
+   cambio de filtro — de lo contrario cada renderTablero() reconstruiría el
+   DOM y volvería a mostrar todo, deshaciendo silenciosamente la acción. */
+let SEDES_COLAPSADAS=false;
 let SHOW_CONS_GENERAL=false; // tabla "Producto (kg/mes)" movida desde Indicadores hacia Desempeño Operacional por Sede
 let SHOW_DET_SEDE=false, SHOW_PROY_MES=false;   // consumo por tratamiento
 let SHOW_OT_TBL=false, SHOW_OT_RANK=true, SHOW_OT_LATER=false, SHOW_OT_OBS=true, SHOW_OT_CM=false; // conciliación OFFICETRACK vs ALP
@@ -6849,15 +6854,16 @@ document.addEventListener("keydown", function(ev){
   if(document.body.classList.contains("drawer-open") && typeof closeDrawer==="function"){ closeDrawer(); }
 });
 function expandFilters(){ const fb=document.getElementById("filterBar"); if(fb){ fb.classList.remove("collapsed"); fb.classList.add("ma-open"); } const btn=document.getElementById("fbSummary"); if(btn){ btn.classList.add("is-open"); btn.setAttribute("aria-expanded","true"); } }
+/* Colapsa/expande TODAS las tarjetas de monitoreo agrupadas por sede,
+   pero conserva siempre visibles los encabezados .sede-h (nombre + resumen
+   de estados) — así se puede reabrir sede por sede según interese, en vez
+   de perder de vista la lista completa de sedes.
+   NO oculta #tablero completo (eso sí escondería los nombres de sede).
+   Delegar en renderTablero() (que ya lee SEDES_COLAPSADAS) evita que el
+   estado del botón y el del DOM queden desincronizados tras un refiltrado. */
 function toggleSedesMonitoreo(){
-  const tb=document.getElementById("tablero");
-  if(!tb) return;
-  const hidden=tb.style.display==="none";
-  tb.style.display=hidden?"":"none";
-  const ico=document.getElementById("iconHideSedes");
-  const lbl=document.getElementById("lblHideSedes");
-  if(ico) ico.innerHTML=hidden?'<path d="M1 7L5 3L9 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>':'<path d="M1 3L5 7L9 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>';
-  if(lbl) lbl.textContent=hidden?"Ocultar sedes":"Mostrar sedes";
+  SEDES_COLAPSADAS = !SEDES_COLAPSADAS;
+  renderTablero();
 }
 function toggleProj(){ SHOW_PROJ=!SHOW_PROJ; document.getElementById("btnProj").textContent=SHOW_PROJ?"Ocultar proyección pH/cloro":"Mostrar proyección pH/cloro"; document.getElementById("btnProj").className=SHOW_PROJ?"acc sm":"gh sm"; renderTablero(); }
 function toggleIslDetail(){ SHOW_ISL_DETAIL=!SHOW_ISL_DETAIL; renderIndicadores(getFilt()); }
@@ -7265,12 +7271,19 @@ function renderTablero(){
     const worst = cnt.r>0?'r' : cnt.o>0?'o' : cnt.y>0?'y' : cnt.v>0?'v' : 'nd';
     const wrap=document.createElement("div");
     const id="s_"+clean(sede).replace(/ /g,"_");
+    const gridDisplay = SEDES_COLAPSADAS?"none":"grid";
     wrap.innerHTML=`<div class="sede-h ${worst}" onclick="var x=document.getElementById('${id}');x.style.display=x.style.display==='none'?'grid':'none'">
       <span class="sede-nm">${sede}</span>
       <span class="sede-sum">${es.length} vasos <i class="mini v">${cnt.v}</i><i class="mini y">${cnt.y}</i><i class="mini o">${cnt.o}</i><i class="mini r">${cnt.r}</i>${cnt.nd?`<i class="mini nd">${cnt.nd}</i>`:""}</span></div>
-      <div class="cards" id="${id}">${es.map(cardHTML).join("")}</div>`;
+      <div class="cards" id="${id}" style="display:${gridDisplay}">${es.map(cardHTML).join("")}</div>`;
     cont.appendChild(wrap);
   });
+  const lblHS=document.getElementById("lblHideSedes");
+  const icoHS=document.getElementById("iconHideSedes");
+  if(lblHS) lblHS.textContent = SEDES_COLAPSADAS?"Mostrar todas":"Ocultar todas";
+  if(icoHS) icoHS.innerHTML = SEDES_COLAPSADAS
+    ? '<path d="M1 3L5 7L9 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'
+    : '<path d="M1 7L5 3L9 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>';
 }
 
 /* ---------- promedio histórico por vaso (para mini-tendencias) ---------- */
