@@ -6694,6 +6694,17 @@ function indicadores(f){
     else {durStat="cumple";durTxt="Cumple (no ideal)";}
   }
 
+  // ----- ALCALINIDAD: mismo patrón que ISL y dureza; campo MED: "alc"; rangos Res.234/2026 -----
+  // Ideal: 80-120 ppm · Norma máx: 150 ppm CaCO₃
+  const alc=ultimoMedidoFiltrado(f,"alc");
+  const alcProm=alc.prom;
+  let alcStat="nd",alcTxt="Sin dato";
+  if(alcProm!=null){
+    if(alcProm>=80 && alcProm<=120){alcStat="ideal";alcTxt="Cumple (ideal)";}
+    else if(alcProm>0 && alcProm<=150){alcStat="cumple";alcTxt="Cumple (no ideal)";}
+    else {alcStat="revisar";alcTxt="REQUIERE REVISIÓN";}
+  }
+
   // ¿hay vasos de cada tipo DENTRO del filtro de ubicación? (sirve para distinguir "No aplica" de "Sin dato")
   const hasNormal = evals.some(e=>e.pool.tipo!=="Estricta");
   const hasEstr   = evals.some(e=>e.pool.tipo==="Estricta");
@@ -6741,6 +6752,7 @@ function indicadores(f){
   const cm=consumoMensual();
   return {islProm,islStat,islTxt,islRows,islScope,islScopeTxt,islLbl,
           durProm,durStat,durTxt,durRows,durScope,durScopeTxt,durLbl,
+          alcProm,alcStat,alcTxt,
           ccPisc,ccEstr,desPisc,desEstr,efPisc,efEstr,hasNormal,hasEstr,cm,evals};
 }
 
@@ -7622,14 +7634,11 @@ function renderIndicadores(f){
   const durAngle= durHasData? gaugeNeedleAngle(durVal,0,700):0;
   const durColor= I.durStat==='revisar'?'#ef4444':(I.durStat==='ideal'||I.durStat==='cumple'?'#06b6d4':'#94a3b8');
 
-  // Alcalinidad: si I.alcProm existe (campo del objeto indicadores), si no se omite
-  // Nota: se lee I.alcProm (promedio de alcalinidad del filtro), campo ya calculado por indicadores()
+  // Alcalinidad: leída directamente del objeto I calculado por indicadores()
   const alcVal= (I.alcProm!=null)?I.alcProm:0;
   const alcHasData= I.alcProm!=null;
   const alcAngle= alcHasData? gaugeNeedleAngle(alcVal,0,150):0;
-  const alcStat= !alcHasData?'nd':((alcVal>=80&&alcVal<=120)?'ideal':((alcVal>0&&alcVal<=150)?'cumple':'revisar'));
-  const alcColor= alcStat==='revisar'?'#ef4444':(alcStat==='ideal'||alcStat==='cumple'?'#a78bfa':'#94a3b8');
-  const alcTxt= alcStat==='ideal'?'Ideal':(alcStat==='cumple'?'Cumple':(alcStat==='revisar'?'No cumple':'Sin dato'));
+  const alcColor= I.alcStat==='revisar'?'#ef4444':(I.alcStat==='ideal'||I.alcStat==='cumple'?'#a78bfa':'#94a3b8');
 
   // cloro: colores según estado
   const clV=(st)=> st==='cumple'?'g':(st==='revisar'?'r':(st==='nd'?'nd':''));
@@ -7724,7 +7733,7 @@ function renderIndicadores(f){
             <circle cx="100" cy="96" r="4" fill="${alcColor}" opacity="0.2"/>
             <circle cx="100" cy="96" r="2.5" fill="${alcColor}"/>`:''}
           </svg>
-          <span class="${gaugeBadgeCls(alcStat)}">${alcTxt}</span>
+          <span class="${gaugeBadgeCls(I.alcStat)}">${I.alcTxt}</span>
           <div class="kg-sub">Ideal: 80–120 ppm · Norma máx. 150 ppm CaCO₃</div>
         </div>
 
