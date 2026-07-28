@@ -226,10 +226,15 @@ body.pims-auth-ok #pimsAuthOverlay{ display:none; }
 
 /* ================= SESIÓN DE CLIENTE (integrada en el pie del sidebar "Centro de Control") ================= */
 .sb-session{
+  display:none; /* oculto por defecto — se muestra vía .sb-session-active (JS) para evitar
+                   que el style inline sobreescriba la regla body.sb-collapsed */
   margin:4px 12px 12px; padding:12px 13px; border-radius:13px;
   background:linear-gradient(160deg,#2b2b2b 0%, #202020 100%); border:1px solid var(--line-d);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
 }
+.sb-session.sb-session-active{ display:block; }
+body.sb-collapsed .sb-session,
+body.sb-collapsed .sb-session.sb-session-active{ display:none !important; }
 .sb-session-row{ display:flex; align-items:center; justify-content:space-between; gap:8px }
 .sb-session-info{ display:flex; flex-direction:column; gap:2px; min-width:0; overflow:hidden }
 .sb-session-k{ font-size:var(--fs-9-5); color:var(--muted-d); text-transform:uppercase; letter-spacing:.5px; font-weight:700 }
@@ -239,7 +244,6 @@ body.pims-auth-ok #pimsAuthOverlay{ display:none; }
   background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); color:#cfcfcf; box-shadow:none;
 }
 .sb-session-logout:hover{ background:rgba(231,76,60,.16); border-color:rgba(231,76,60,.4); color:#f1a59c }
-body.sb-collapsed .sb-session{ display:none }
 
 /* ================= PANELS ================= */
 .panel{position:relative;background:linear-gradient(165deg,#262626 0%, #1f1f1f 100%);border:1px solid var(--line-d);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:var(--sh-2), inset 0 1px 0 rgba(255,255,255,.04)}
@@ -2201,13 +2205,14 @@ body.sb-collapsed .sidebar .tab.active{ border-left:none; box-shadow:0 0 0 1px r
   z-index:58;
 }
 #filterBar.ma-open .ma-drawer{ transform:translateX(0); opacity:1; }
-.ma-drawer-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:6px; }
+.ma-drawer-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
 .ma-drawer-eyebrow{ font-size:var(--fs-10-5); font-weight:800; letter-spacing:1.1px; text-transform:uppercase; color:var(--acen-2);
   display:flex; align-items:center; gap:7px; }
 .ma-drawer-eyebrow::before{ content:""; width:7px; height:7px; border-radius:50%; background:var(--acen); box-shadow:0 0 0 3px rgba(230,81,0,.22); }
 .ma-drawer-title{ font-size:var(--fs-19); font-weight:800; color:#fff; letter-spacing:-.2px; margin-top:7px; }
 .ma-drawer-close{ flex:none; width:28px; height:28px; border-radius:9px; cursor:pointer; line-height:1; font-size:var(--fs-13);
-  background:rgba(255,255,255,.05); border:1px solid var(--stroke); color:var(--muted-d); }
+  background:rgba(255,255,255,.05); border:1px solid var(--stroke); color:var(--muted-d);
+  display:flex; align-items:center; justify-content:center; align-self:flex-start; margin-top:2px; }
 .ma-drawer-close:hover{ background:rgba(255,255,255,.09); color:var(--txt-d); }
 .ma-drawer-desc{ font-size:var(--fs-12-5); line-height:1.55; color:var(--muted-d); margin:12px 0 20px; max-width:320px; }
 .ma-drawer .row{ flex-direction:column; gap:12px; align-items:stretch; }
@@ -4481,7 +4486,9 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
           <span class="ti"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="16" height="20" rx="2.2" stroke="currentColor" stroke-width="1.8"/><path d="M7 6.5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="11" r="1.15" fill="currentColor"/><circle cx="12" cy="11" r="1.15" fill="currentColor"/><circle cx="16" cy="11" r="1.15" fill="currentColor"/><circle cx="8" cy="15" r="1.15" fill="currentColor"/><circle cx="12" cy="15" r="1.15" fill="currentColor"/><circle cx="16" cy="15" r="1.15" fill="currentColor"/><circle cx="8" cy="19" r="1.15" fill="currentColor"/><circle cx="12" cy="19" r="1.15" fill="currentColor"/><circle cx="16" cy="19" r="1.15" fill="currentColor"/></svg></span>
           <span class="tl">Calculadora ISL</span>
         </div>
+      </div>
       <div class="sb-sec sb-sec-2">Configuración</div>
+      <div class="tabs">
         <div class="tab" data-v="diag" title="Diagnóstico de fuentes">
           <span class="ti"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l2-7 4 14 2-7h6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           <span class="tl">Diagnóstico</span>
@@ -4496,7 +4503,7 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
         </div>
       </div>
 
-      <div class="sb-session" id="sbSession" style="display:none">
+      <div class="sb-session" id="sbSession">
         <div class="sb-session-row">
           <div class="sb-session-info">
             <span class="sb-session-k">Sesión activa</span>
@@ -5389,9 +5396,9 @@ function pimsUpdateSessionBlock(){
   const profile=pimsGetClientProfile();
   if(profile){
     nameEl.textContent = ACTIVE_CLIENT==="OPERACION" ? "OPERACIÓN · "+OPERATOR_SEDE : profile.name;
-    box.style.display="block";
+    box.classList.add("sb-session-active");
   }else{
-    box.style.display="none";
+    box.classList.remove("sb-session-active");
   }
 }
 function pimsLogout(){
