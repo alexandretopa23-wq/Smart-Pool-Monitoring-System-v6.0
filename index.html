@@ -193,6 +193,14 @@ body.pims-auth-ok #pimsAuthOverlay{ display:none; }
   color:#f1a59c; background:rgba(231,76,60,.12); border:1px solid rgba(231,76,60,.30); display:none;
 }
 .pims-auth-err.show{ display:block; animation:pimsFadeIn .2s }
+.pims-auth-demo{
+  display:block; width:auto; margin:14px auto 0; padding:5px 16px;
+  border:1px solid rgba(255,255,255,.12); border-radius:20px;
+  background:rgba(255,255,255,.03); color:#8B95A8;
+  font-size:var(--fs-10-5); font-weight:700; letter-spacing:.4px; text-transform:uppercase;
+  cursor:pointer; transition:var(--dur-instant);
+}
+.pims-auth-demo:hover{ background:rgba(255,123,51,.10); color:#FF7B33; border-color:rgba(255,123,51,.28) }
 .pims-auth-foot{ margin-top:22px; padding-top:16px; border-top:1px solid var(--line-d); text-align:center; font-size:var(--fs-10-5); color:#6b6b6b; letter-spacing:.3px }
 .pims-auth-credit{ font-size:var(--fs-10-5); color:var(--acen-2); font-weight:600; margin-bottom:5px; letter-spacing:.2px }
 .pims-auth-credit b{ font-weight:800; color:var(--acen-2) }
@@ -4037,6 +4045,7 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
     </div>
     <button class="pims-auth-submit" id="pimsAuthSubmit" onclick="pimsValidateLogin()" disabled>Ingresar</button>
     <div class="pims-auth-err" id="pimsAuthErr"></div>
+    <button type="button" class="pims-auth-demo" onclick="pimsDemoLogin()" title="Explora el sistema con datos de ejemplo, sin necesidad de credenciales">Demo</button>
     <div class="pims-auth-foot">
       <div class="pims-auth-credit">Created by <b>Ing. Hugo Alexander Caballero</b></div>
       Sistema de Monitoreo Inteligente de Piscinas · Acceso restringido
@@ -4204,7 +4213,7 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
           <input type="checkbox" id="autoReconnectToggle" onchange="event.stopPropagation();saveAutoReconnectPref(this.checked)" style="cursor:pointer">
           🔄 Auto-reconectar al abrir
         </label>
-        <button type="button" class="gh sm cs-demo" onclick="event.preventDefault();event.stopPropagation();loadDemo()">Ver ejemplo</button>
+        <button type="button" class="gh sm cs-demo" onclick="event.preventDefault();event.stopPropagation();loadDemo()">Demo</button>
         <span class="cs-btn">Administrar fuentes ▾</span>
       </span>
     </summary>
@@ -5042,6 +5051,27 @@ function pimsStorageScope(){ return ACTIVE_CLIENT==="OPERACION" ? "OPERACION_"+(
 function pimsLinkSlotsKey(){ return "pis_link_slots_v1__"+pimsStorageScope(); }
 function pimsAutoReconnectKey(){ return "pis_autoreconnect_v1__"+pimsStorageScope(); }
 
+/* Acceso rápido "Demo" desde la propia pantalla de login: entra como
+   SUPERVISIÓN (perfil sin restricciones de sede/módulo, el más representativo
+   para explorar el sistema) y carga los datos de ejemplo directamente —
+   sin pedir contraseña. Reutiliza el mismo flujo de sesión que un login
+   normal (persistencia en localStorage, restricciones de tabs, etc.) para
+   que la demo se comporte exactamente igual que una sesión real; la única
+   diferencia es el origen de los datos (loadDemo() en vez de Hojas Ancladas
+   o Sheets manuales). */
+function pimsDemoLogin(){
+  ACTIVE_CLIENT="SUPERVISION";
+  OPERATOR_SEDE=null;
+  EXCLUDED_SEDES=(PIMS_CLIENTS.SUPERVISION.excludeSedes||[]).slice();
+  try{
+    localStorage.setItem(PIMS_ACTIVE_CLIENT_KEY, "SUPERVISION");
+    localStorage.removeItem(PIMS_OPERATOR_SEDE_KEY);
+  }catch(e){}
+  document.body.classList.add("pims-auth-ok");
+  pimsApplyTabRestrictions();
+  pimsUpdateSessionBlock();
+  loadDemo(); // internamente ya llama sanitizeDataForClient() + renderAll()
+}
 function pimsSelectClient(clientKey){
   _pimsSelectedClient = clientKey;
   document.querySelectorAll(".pims-client-btn").forEach(function(el){
