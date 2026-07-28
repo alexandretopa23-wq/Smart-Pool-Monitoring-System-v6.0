@@ -1255,7 +1255,15 @@ body.sb-collapsed .sb-foot, body.sb-collapsed .sidebar .tab .tl{ display:none; }
 body.sb-collapsed .sidebar{ padding:16px 11px; }
 body.sb-collapsed .sidebar .tab{ justify-content:center; padding:12px 0; }
 body.sb-collapsed .sidebar .tab.active::before{ left:-11px; }
-body.sb-collapsed .sb-head, body.sb-collapsed .sb-brand{ justify-content:center; }
+/* Colapsado: la cabecera apila logo y botón verticalmente en el centro,
+   en vez de side-by-side con space-between — evita la superposición
+   del botón sobre el logo cuando el texto desaparece. */
+body.sb-collapsed .sb-head{
+  flex-direction:column; align-items:center; justify-content:center; gap:6px; padding-bottom:12px;
+}
+body.sb-collapsed .sb-brand{ justify-content:center; }
+/* El botón colapso se achica un poco en modo icono para no dominar visualmente */
+body.sb-collapsed .sb-collapse{ width:26px; height:20px; border-radius:7px; }
 
 /* Overlay para el drawer móvil */
 .sb-overlay{ display:none; position:fixed; inset:0; z-index:54; background:rgba(0,0,0,.55); backdrop-filter:blur(3px); }
@@ -1266,11 +1274,13 @@ body.drawer-open .sb-overlay{ display:block; }
   body.app-on .wrap{ margin-left:0; }
   .sidebar{ transform:translateX(-101%); width:288px; box-shadow:none; }
   body.drawer-open .sidebar{ transform:translateX(0); box-shadow:16px 0 48px rgba(0,0,0,.6); }
-  /* en móvil se ignora el colapso de iconos */
+  /* en móvil se ignora el colapso de iconos — revertir también el flex-direction del sb-head */
   body.sb-collapsed .sidebar{ width:288px; padding:16px 13px; }
   body.sb-collapsed .sb-brandtxt, body.sb-collapsed .sb-sec,
   body.sb-collapsed .sb-foot, body.sb-collapsed .sidebar .tab .tl{ display:revert; }
   body.sb-collapsed .sidebar .tab{ justify-content:flex-start; padding:11px 12px; }
+  body.sb-collapsed .sb-head{ flex-direction:row; align-items:center; justify-content:space-between; gap:8px; padding-bottom:14px; }
+  body.sb-collapsed .sb-collapse{ width:31px; height:31px; border-radius:10px; }
   body.app-on .navtoggle{ display:flex; }
 }
 
