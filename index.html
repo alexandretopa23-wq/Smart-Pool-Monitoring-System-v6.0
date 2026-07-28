@@ -5038,6 +5038,19 @@ const PIMS_CLIENTS = {
 };
 const PIMS_ACTIVE_CLIENT_KEY = "pims_active_client_v1";
 const PIMS_OPERATOR_SEDE_KEY = "pims_operator_sede_v1";
+/* Continuidad de navegación entre refrescos de página (F5): recuerdan la
+   última pestaña activa y el último Marco Analítico (fecha/sede/piscina)
+   para que, al recargar con sesión ya guardada, el usuario reaparezca
+   donde estaba en vez de tener que re-navegar desde cero. Namespaced por
+   cliente igual que las demás claves de sesión, así un cambio de perfil
+   no arrastra el filtro de otro perfil. */
+const PIMS_LAST_TAB_KEY = "pims_last_tab_v1";
+const PIMS_LAST_FILTER_KEY = "pims_last_filter_v1";
+/* Valores pendientes de restaurar en el próximo fillPiscinas()/syncFiltros()
+   tras un F5 — puente entre pimsRestoreLastFilter() (que solo puede tocar
+   inputs ya existentes en el DOM) y el momento en que <select> de sede/
+   piscina terminan de poblarse con sus <option>. null = nada pendiente. */
+let PIMS_PENDING_SEDE=null, PIMS_PENDING_PISC=null;
 let ACTIVE_CLIENT = null;
 let EXCLUDED_SEDES = [];
 let OPERATOR_SEDE = null; // solo aplica al perfil OPERACIÓN: nombre canónico de la sede del operador
@@ -5246,6 +5259,45 @@ function pimsInitAuth(){
     pimsApplyTabRestrictions();
     pimsUpdateSessionBlock();
     sanitizeDataForClient();
+    /* Al refrescar la página con una sesión ya guardada, el usuario NO debe
+       ver la app en blanco mientras se reconecta con las Hojas Ancladas en
+       segundo plano — eso es lo que generaba la duda de "¿esto es demo o
+       son mis datos reales?" y llevaba a cerrar sesión innecesariamente
+       para volver a entrar. Se muestra la misma pantalla de sincronización
+       que ya existe para el login manual, y se dispara la reconexión de
+       inmediato (sin esperar el evento 'load' de la ventana, que puede
+       tardar más de lo necesario si hay recursos externos pesados).
+       IMPORTANTE: se difiere con setTimeout(...,0) porque pimsInitAuth()
+       se ejecuta en medio del script (mucho antes de la declaración de
+       igLoadingState y otras variables usadas por el sistema de carga) —
+       acceder a ellas de forma síncrona aquí lanzaría un error de
+       inicialización (temporal dead zone de `let`). Diferir a un tick
+       posterior espera a que el script termine su primera pasada completa. */
+    setTimeout(()=>{
+      if(typeof igShowLoadingScreen==="function") igShowLoadingScreen();
+      if(typeof igMonitorDataLoading==="function") igMonitorDataLoading();
+      Promise.resolve()
+        .then(()=>{
+          if(typeof pimsAutoConnectOnLoad==="function") return pimsAutoConnectOnLoad();
+          if(typeof autoConnectFromSavedSlots==="function") return autoConnectFromSavedSlots();
+        })
+        .then(()=>{
+          if(typeof igCheckStalledLoadAfterSync==="function") igCheckStalledLoadAfterSync();
+          /* Si tras la reconexión no llegó ningún dato (sin ranuras guardadas,
+             sin hojas ancladas, o la fuente falló), no dejar la pantalla de
+             carga girando indefinidamente ni la app en blanco: se oculta el
+             overlay y se informa con claridad — nunca se activa el modo demo
+             en automático, eso solo ocurre si el propio usuario pulsa "Demo". */
+          if(!MED.length && !MOVS.length && !MOVS_OT.length && !LAB.length && !CONTRA.length && !INFRA.length){
+            if(typeof igHideLoadingScreen==="function") igHideLoadingScreen();
+            setStatus("No hay datos conectados aún. Ve a \"Conexión de datos\" para anclar tus hojas de Sheets, o pulsa \"Demo\" para explorar con datos de ejemplo.","info");
+          }
+        })
+        .catch(()=>{
+          if(typeof igHideLoadingScreen==="function") igHideLoadingScreen();
+          setStatus("⚠ No se pudo reconectar automáticamente. Verifica tus hojas ancladas en \"Conexión de datos\".","err");
+        });
+    },0);
   }
 }
 /* Retira del catálogo (POOLS/SEDE_ORDER) y de los datos ya cargados
@@ -6830,14 +6882,51 @@ function v(x,d=1){return x==null?"—":(Math.round(x*Math.pow(10,d))/Math.pow(10
 function round5(x){ return x==null?null:Math.round(x/5)*5; }
 function emptyMsg(t){return `<div class="empty"><div class="big">📊</div>${t||"Carga las fuentes para ver el análisis."}</div>`;}
 
+/* Restaura, una sola vez por carga de página, el último Marco Analítico
+   (fecha desde/hasta + sede + piscina) que el usuario tenía activo antes
+   de refrescar — así un F5 no lo obliga a re-navegar hasta donde estaba.
+   Se aplica ANTES del valor por defecto de "mes en curso": si había un
+   filtro guardado, ese tiene prioridad; si no, sigue el comportamiento
+   normal de syncFiltros(). No es lógica de negocio: solo restituye
+   valores de input que el propio usuario ya había elegido. */
+let __pimsFiltroRestaurado=false;
+function pimsRestoreLastFilter(){
+  if(__pimsFiltroRestaurado) return;
+  __pimsFiltroRestaurado=true;
+  try{
+    const saved=JSON.parse(localStorage.getItem(PIMS_LAST_FILTER_KEY)||'null');
+    if(!saved) return;
+    const dD=document.getElementById("fDesde"), dH=document.getElementById("fHasta");
+    if(saved.desde && dD && !dD.value) dD.value=saved.desde;
+    if(saved.hasta && dH && !dH.value) dH.value=saved.hasta;
+    if(saved.sede) PIMS_PENDING_SEDE=saved.sede;
+    if(saved.pisc) PIMS_PENDING_PISC=saved.pisc;
+  }catch(e){}
+}
+/* Guarda el filtro activo cada vez que syncFiltros() corre con datos ya
+   cargados — cubre cualquier cambio (fecha, sede, piscina) sin necesidad
+   de un listener por campo. Guardar algo tan liviano en cada render es
+   despreciable en costo y garantiza que nunca quede desactualizado. */
+function pimsPersistCurrentFilter(){
+  try{
+    const f=getFilt();
+    localStorage.setItem(PIMS_LAST_FILTER_KEY, JSON.stringify({
+      desde: document.getElementById("fDesde")?.value||"",
+      hasta: document.getElementById("fHasta")?.value||"",
+      sede: f.sede||"", pisc: f.pisc||""
+    }));
+  }catch(e){}
+}
 function syncFiltros(){
+  pimsRestoreLastFilter();
   const {mn,mx}=dataBounds();
   const dD=document.getElementById("fDesde"), dH=document.getElementById("fHasta");
   if(mn&&mx){
     dD.min=ymd(mn); dD.max=ymd(mx); dH.min=ymd(mn); dH.max=ymd(mx);
     // Rango por defecto: primer día del mes actual → hoy (Marco Analítico "último mes disponible").
     // El límite min/max del input conserva el histórico completo para navegación libre;
-    // solo el VALOR inicial (cuando el usuario no ha tocado el filtro) se acota al mes en curso.
+    // solo el VALOR inicial (cuando el usuario no ha tocado el filtro, y no había uno guardado
+    // de una sesión anterior — ver pimsRestoreLastFilter arriba) se acota al mes en curso.
     if(!dD.value || !dH.value){
       const hoy=new Date();
       const primerDiaMes=new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -6850,20 +6939,23 @@ function syncFiltros(){
   }
   // sedes presentes
   const sedesData=[...new Set(MED.filter(m=>m.pool).map(m=>m.pool.sede).concat(MOVS.filter(m=>m.pool).map(m=>m.pool.sede)).concat(LAB.filter(l=>l.pool).map(l=>l.pool.sede)).concat(CONTRA.filter(c=>c.pool).map(c=>c.pool.sede)))];
-  const sedeSel=document.getElementById("fSede"); const cur=sedeSel.value;
+  const sedeSel=document.getElementById("fSede"); const cur=PIMS_PENDING_SEDE!=null?PIMS_PENDING_SEDE:sedeSel.value;
+  PIMS_PENDING_SEDE=null;
   sedeSel.innerHTML='<option value="">Todas las sedes</option>'+SEDE_ORDER.filter(s=>sedesData.includes(s)).map(s=>`<option value="${s}">${s}</option>`).join("");
   sedeSel.value=cur;
   fillPiscinas();
+  pimsPersistCurrentFilter();
 }
 function fillPiscinas(){
   const sede=document.getElementById("fSede").value;
-  const psel=document.getElementById("fPisc"); const cur=psel.value;
+  const psel=document.getElementById("fPisc"); const cur=PIMS_PENDING_PISC!=null?PIMS_PENDING_PISC:psel.value;
+  PIMS_PENDING_PISC=null;
   let pools=POOLS.filter(p=>!sede||p.sede===sede);
   psel.innerHTML='<option value="">Todas las piscinas</option>'+pools.map(p=>`<option value="${p.piscina}">${p.sede==''?'':''}${p.piscina}</option>`).join("");
   psel.value=cur;
 }
 function onSedeChange(){ fillPiscinas(); renderAll(); }
-function resetFiltros(){ const {mn,mx}=dataBounds(); document.getElementById("fDesde").value=mn?ymd(mn):""; document.getElementById("fHasta").value=mx?ymd(mx):""; document.getElementById("fSede").value=""; fillPiscinas(); document.getElementById("fPisc").value=""; renderAll(); }
+function resetFiltros(){ const {mn,mx}=dataBounds(); document.getElementById("fDesde").value=mn?ymd(mn):""; document.getElementById("fHasta").value=mx?ymd(mx):""; document.getElementById("fSede").value=""; fillPiscinas(); document.getElementById("fPisc").value=""; try{ localStorage.removeItem(PIMS_LAST_FILTER_KEY); }catch(e){} renderAll(); }
 
 /* ===================== FILTROS COLAPSABLES (solo UI) ===================== */
 function updateFilterSummary(){
@@ -14948,7 +15040,13 @@ async function pimsAutoConnectOnLoad(){
   if(loadAnchorAutoSyncPref()) await syncAnchoredSheets(false);
   await autoConnectFromSavedSlots();
 }
-window.addEventListener("load", function(){ if(ACTIVE_CLIENT) pimsAutoConnectOnLoad(); });
+/* NOTA: el disparo de pimsAutoConnectOnLoad() para sesiones restauradas
+   ahora vive dentro de pimsInitAuth() (se ejecuta apenas se detecta la
+   sesión guardada, sin esperar el evento 'load' completo de la ventana —
+   más rápido y con feedback visual vía igShowLoadingScreen()). Este
+   listener quedaría duplicado si se mantuviera, así que se retiró; el
+   comportamiento para primer login manual no cambia, pimsCommitLogin()
+   sigue disparando su propia reconexión igual que siempre. */
 
 /* ===================== FILTROS INDEPENDIENTES DEL MÓDULO LABORATORIO ===================== */
 
@@ -15111,6 +15209,7 @@ const PIMS_RENDER_FNS_BY_TAB = {
   lab: ()=>renderLab(), activos: ()=>renderActivos(), balq: ()=>hhRenderBalance()
 };
 let __renderAllEpoch = 0;
+let __pimsTabRestaurado=false;
 
 function renderAll(){
   const __epoch = ++__renderAllEpoch;
@@ -15125,6 +15224,26 @@ function renderAll(){
   if(LAB.length||CONTRA.length) syncLabFiltros();
   updateHeaderChips();
   renderGlobalInsights(getFilt());
+
+  /* Restaura, una sola vez por carga de página, la pestaña donde el usuario
+     estaba antes de un F5 — evita reaparecer siempre en "Resumen Ejecutivo"
+     y tener que re-navegar manualmente. Solo cambia CUÁL pestaña luce con
+     class="active" (presentación); el propio bucle de abajo ya se encarga
+     de renderizarla con los datos ya sincronizados. */
+  if(!__pimsTabRestaurado){
+    __pimsTabRestaurado=true;
+    try{
+      const lastTab=localStorage.getItem(PIMS_LAST_TAB_KEY);
+      const targetTab=lastTab? document.querySelector(`.tab[data-v="${lastTab}"]`):null;
+      if(targetTab && !targetTab.classList.contains("active")){
+        document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+        document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
+        targetTab.classList.add("active");
+        const view=document.getElementById("v-"+lastTab);
+        if(view) view.classList.add("active");
+      }
+    }catch(e){}
+  }
 
   /* La pestaña visible se pinta YA, de forma síncrona — es lo único que
      el usuario está mirando en este instante. El resto de los módulos
@@ -16298,6 +16417,10 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
   document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
   t.classList.add("active"); document.getElementById("v-"+t.dataset.v).classList.add("active");
+  /* Recuerda la pestaña activa para restaurarla tras un refresh de página
+     (ver pimsRestoreLastPosition) — solo presentación, no toca datos ni
+     lógica de negocio. */
+  try{ localStorage.setItem(PIMS_LAST_TAB_KEY, t.dataset.v); }catch(e){}
   /* Garantiza que el módulo recién seleccionado tenga contenido fresco
      de inmediato, incluso si la cadena diferida de renderAll() (ver
      línea ~14873) todavía no había llegado a este módulo. Gracias a la
