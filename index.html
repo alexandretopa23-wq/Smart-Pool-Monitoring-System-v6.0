@@ -2876,6 +2876,8 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
 .pch-title{ font-size:14.5px; font-weight:800; color:#fff; margin:0 0 3px; }
 .pch-sub{ font-size:11px; color:#9AA6BC; margin:0; }
 .pch-badge{ display:inline-block; margin-top:7px; font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; padding:3px 9px; border-radius:999px; background:rgba(255,123,51,.16); border:1px solid rgba(255,123,51,.4); color:#FFB37A; }
+.pch-export{ flex:none; width:24px; height:24px; border-radius:7px; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.03); color:#8B95A8; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .13s ease,color .13s ease; }
+.pch-export:hover{ background:rgba(255,123,51,.12); color:#FF7B33; border-color:rgba(255,123,51,.25); }
 .pch-close{ flex:none; width:28px; height:28px; border-radius:9px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:#CBD5E1; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .13s ease; }
 .pch-close:hover{ background:rgba(248,113,113,.18); border-color:rgba(248,113,113,.4); color:#FCA5A5; }
 .pch-body{ padding:14px 16px 8px; }
@@ -6796,7 +6798,21 @@ function emptyMsg(t){return `<div class="empty"><div class="big">📊</div>${t||
 function syncFiltros(){
   const {mn,mx}=dataBounds();
   const dD=document.getElementById("fDesde"), dH=document.getElementById("fHasta");
-  if(mn&&mx){ dD.min=ymd(mn); dD.max=ymd(mx); dH.min=ymd(mn); dH.max=ymd(mx); if(!dD.value)dD.value=ymd(mn); if(!dH.value)dH.value=ymd(mx); }
+  if(mn&&mx){
+    dD.min=ymd(mn); dD.max=ymd(mx); dH.min=ymd(mn); dH.max=ymd(mx);
+    // Rango por defecto: primer día del mes actual → hoy (Marco Analítico "último mes disponible").
+    // El límite min/max del input conserva el histórico completo para navegación libre;
+    // solo el VALOR inicial (cuando el usuario no ha tocado el filtro) se acota al mes en curso.
+    if(!dD.value || !dH.value){
+      const hoy=new Date();
+      const primerDiaMes=new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+      // Acotar contra los límites reales de datos, por si el mes actual no tiene mediciones.
+      const desdeDefault = primerDiaMes<mn ? mn : (primerDiaMes>mx ? mx : primerDiaMes);
+      const hastaDefault = hoy>mx ? mx : hoy;
+      if(!dD.value) dD.value=ymd(desdeDefault);
+      if(!dH.value) dH.value=ymd(hastaDefault);
+    }
+  }
   // sedes presentes
   const sedesData=[...new Set(MED.filter(m=>m.pool).map(m=>m.pool.sede).concat(MOVS.filter(m=>m.pool).map(m=>m.pool.sede)).concat(LAB.filter(l=>l.pool).map(l=>l.pool.sede)).concat(CONTRA.filter(c=>c.pool).map(c=>c.pool.sede)))];
   const sedeSel=document.getElementById("fSede"); const cur=sedeSel.value;
@@ -7606,15 +7622,25 @@ function renderIndicadores(f){
 
   // ── helpers de gauge SVG ──────────────────────────────────────────────────
   // Genera el SVG de velocímetro semicircular.
-  // val: valor numérico, min/max: escala, color: hex stroke, decimals: precisión display
-  // idealMin/idealMax: zona ideal (opcional, halo destacado)
-  // La aguja parte del pivote inferior y apunta hacia arriba; el valor se muestra
-  // centrado en el arco, por ENCIMA del pivote, de modo que la aguja nunca lo tapa.
+  // val: valor numérico, min/max: escala, color: hex stroke.
+  // REGLA DE DISEÑO: el indicador de posición ("marker") vive SIEMPRE sobre el
+  // propio trazo del arco (radio fijo 84, mismo centro 100,96) — nunca es una
+  // aguja radial que cruza hacia el centro, así que jamás puede solaparse con
+  // el valor numérico grande que se muestra en el interior del semicírculo.
   const gaugeArcPath="M 16 96 A 84 84 0 0 1 184 96"; // semicírculo 180°, r=84, longitud arco≈263.9
   const arcLen=263.9;
+  const gaugeCx=100, gaugeCy=96, gaugeR=84;
   const gaugeNeedleAngle=(val,mn,mx)=>{
     const pct=Math.max(0,Math.min(1,(val-mn)/(mx-mn)));
     return -90+pct*180; // -90° (izq) → +90° (der)
+  };
+  // Marker: círculo con halo, posicionado en el punto del arco correspondiente al ángulo dado.
+  const gaugeMarker=(angleDeg,color)=>{
+    const rad=(angleDeg-90)*Math.PI/180; // -90° offset porque el arco empieza a la izquierda (180°→0°)
+    const mx=gaugeCx+gaugeR*Math.cos(rad);
+    const my=gaugeCy+gaugeR*Math.sin(rad);
+    return `<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="7" fill="${color}" opacity="0.22"/>
+            <circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="4.5" fill="${color}" stroke="#0f1419" stroke-width="1.5" style="filter:drop-shadow(0 0 3px ${color})"/>`;
   };
   const gaugeBadgeCls=(st)=> st==='ideal'?'kg-badge-ok':(st==='cumple'?'kg-badge-ok':(st==='revisar'?'kg-badge-crit':'kg-badge-nd'));
   const gaugeValColor=(st)=> st==='ideal'||st==='cumple'?null:(st==='revisar'?'#ef4444':'#94a3b8');
@@ -7670,10 +7696,8 @@ function renderIndicadores(f){
             <text x="100" y="20" font-size="7" fill="rgba(148,163,184,0.4)" text-anchor="middle">0</text>
             <text x="52" y="108" font-size="6" fill="rgba(16,185,129,0.5)" text-anchor="middle">-0,5</text>
             <text x="148" y="108" font-size="6" fill="rgba(16,185,129,0.5)" text-anchor="middle">+0,5</text>
+            ${islHasData?gaugeMarker(islAngle,islColor):''}
             <text x="100" y="86" font-size="20" font-weight="700" fill="${islColor}" text-anchor="middle">${islHasData?v(islVal,2):"—"}</text>
-            ${islHasData?`<line x1="100" y1="96" x2="100" y2="38" stroke="${islColor}" stroke-width="2" stroke-linecap="round" transform="rotate(${islAngle} 100 96)" style="filter:drop-shadow(0 0 3px ${islColor})"/>
-            <circle cx="100" cy="96" r="4" fill="${islColor}" opacity="0.2"/>
-            <circle cx="100" cy="96" r="2.5" fill="${islColor}"/>`:''}
           </svg>
           <span class="${gaugeBadgeCls(I.islStat)}">${I.islTxt||"Sin dato"}</span>
           <div class="kg-sub">Ideal: −0,5 a +0,5 · Norma: −3 a +3</div>
@@ -7697,11 +7721,9 @@ function renderIndicadores(f){
             <text x="194" y="104" font-size="7" fill="rgba(148,163,184,0.4)" text-anchor="middle">700</text>
             <text x="100" y="20" font-size="7" fill="rgba(148,163,184,0.35)" text-anchor="middle">350</text>
             <text x="150" y="108" font-size="6" fill="rgba(6,182,212,0.5)" text-anchor="middle">400</text>
+            ${durHasData?gaugeMarker(durAngle,durColor):''}
             <text x="100" y="86" font-size="20" font-weight="700" fill="${durColor}" text-anchor="middle">${durHasData?v(durVal,0):"—"}</text>
             ${durHasData&&I.durProm!=null?`<text x="128" y="86" font-size="9" fill="${durColor}" opacity="0.75">ppm</text>`:''}
-            ${durHasData?`<line x1="100" y1="96" x2="100" y2="38" stroke="${durColor}" stroke-width="2" stroke-linecap="round" transform="rotate(${durAngle} 100 96)" style="filter:drop-shadow(0 0 3px ${durColor})"/>
-            <circle cx="100" cy="96" r="4" fill="${durColor}" opacity="0.2"/>
-            <circle cx="100" cy="96" r="2.5" fill="${durColor}"/>`:''}
           </svg>
           <span class="${gaugeBadgeCls(I.durStat)}">${I.durTxt||"Sin dato"}</span>
           <div class="kg-sub">Ideal ≤ 400 ppm · Norma máx. 700 ppm CaCO₃</div>
@@ -7727,11 +7749,9 @@ function renderIndicadores(f){
             <text x="100" y="20" font-size="7" fill="rgba(148,163,184,0.35)" text-anchor="middle">75</text>
             <text x="56" y="108" font-size="6" fill="rgba(167,139,250,0.5)" text-anchor="middle">80</text>
             <text x="144" y="108" font-size="6" fill="rgba(167,139,250,0.5)" text-anchor="middle">120</text>
+            ${alcHasData?gaugeMarker(alcAngle,alcColor):''}
             <text x="100" y="86" font-size="20" font-weight="700" fill="${alcColor}" text-anchor="middle">${alcHasData?v(alcVal,0):"—"}</text>
             ${alcHasData?`<text x="122" y="86" font-size="9" fill="${alcColor}" opacity="0.75">ppm</text>`:''}
-            ${alcHasData?`<line x1="100" y1="96" x2="100" y2="38" stroke="${alcColor}" stroke-width="2" stroke-linecap="round" transform="rotate(${alcAngle} 100 96)" style="filter:drop-shadow(0 0 3px ${alcColor})"/>
-            <circle cx="100" cy="96" r="4" fill="${alcColor}" opacity="0.2"/>
-            <circle cx="100" cy="96" r="2.5" fill="${alcColor}"/>`:''}
           </svg>
           <span class="${gaugeBadgeCls(I.alcStat)}">${I.alcTxt}</span>
           <div class="kg-sub">Ideal: 80–120 ppm · Norma máx. 150 ppm CaCO₃</div>
@@ -10448,7 +10468,12 @@ async function pchOpenChart(paramKey, pkStr, rowEl){
           <p class="pch-sub" id="pchSub"></p>
           <span class="pch-badge" id="pchBadge"></span>
         </div>
-        <button class="pch-close" onclick="pchClose()" aria-label="Cerrar">✕</button>
+        <div style="display:flex;align-items:center;gap:4px">
+          <button class="pch-export" onclick="pchExportImage()" title="Exportar gráfica como imagen">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7m0 0L4 5.5M6.5 8L9 5.5M2 9.5v1.5a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="pch-close" onclick="pchClose()" aria-label="Cerrar">✕</button>
+        </div>
       </div>
       <div class="pch-body">
         <div class="pch-legend">
@@ -10469,6 +10494,20 @@ function pchClose(){
   if(pchPanel) pchPanel.classList.remove('show');
   pchActive=null;
   if(pchChart){ pchChart.destroy(); pchChart=null; }
+}
+/* Exporta la gráfica de tendencia activa como PNG. Chart.js expone
+   toBase64Image() nativamente sobre el canvas — no requiere html2canvas
+   ni recalcular nada; solo serializa lo ya renderizado. */
+function pchExportImage(){
+  if(!pchChart || !pchActive) return;
+  const {paramKey, pool} = pchActive;
+  const def = PCH_DEF[paramKey];
+  const url = pchChart.toBase64Image('image/png', 1.0);
+  const a = document.createElement('a');
+  const fecha = ymd(new Date());
+  a.href = url;
+  a.download = `Tendencia_${def.label.replace(/[^\w]+/g,'_')}_${pool.piscina.replace(/[^\w]+/g,'_')}_${fecha}.png`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 function pchPositionPanel(rowEl){
   if(!rowEl || !pchPanel) return;
@@ -15032,6 +15071,7 @@ let __renderAllEpoch = 0;
 
 function renderAll(){
   const __epoch = ++__renderAllEpoch;
+  const __t0 = performance.now();
   __evalPoolCache = new Map();
   sanitizeDataForClient();
   if(!MED.length && !MOVS.length && !MOVS_OT.length && !LAB.length && !CONTRA.length && !INFRA.length){ updateSystemState(); return; }
@@ -15053,17 +15093,29 @@ function renderAll(){
   const activeV = document.querySelector(".tab.active")?.dataset.v;
   if(activeV && orden.includes(activeV)){ orden.splice(orden.indexOf(activeV),1); orden.unshift(activeV); }
 
-  PIMS_RENDER_FNS_BY_TAB[orden[0]]();
+  /* Instrumentación de diagnóstico (solo consola, no afecta UI ni datos):
+     mide cuánto tarda cada módulo en renderizarse para ubicar cuellos de
+     botella reales si el tablero se percibe lento. Activar con
+     localStorage.setItem('pims_perf_debug','1') en la consola del navegador. */
+  const __perfOn = (()=>{ try{ return localStorage.getItem('pims_perf_debug')==='1'; }catch(e){ return false; } })();
+  const __timed=(label,fn)=>{
+    if(!__perfOn) return fn();
+    const t=performance.now(); fn(); const dt=performance.now()-t;
+    if(dt>16) console.warn(`[PIMS perf] ${label}: ${dt.toFixed(1)}ms`);
+  };
+
+  __timed(orden[0], PIMS_RENDER_FNS_BY_TAB[orden[0]]);
   let __i=1;
   const __pasoRenderDiferido=()=>{
     if(__epoch!==__renderAllEpoch) return; // una llamada más reciente a renderAll() reemplazó esta cadena
-    if(__i<orden.length){ PIMS_RENDER_FNS_BY_TAB[orden[__i]](); __i++; setTimeout(__pasoRenderDiferido,0); return; }
+    if(__i<orden.length){ __timed(orden[__i], PIMS_RENDER_FNS_BY_TAB[orden[__i]]); __i++; setTimeout(__pasoRenderDiferido,0); return; }
     updateSystemState();
     updateFilterSummary();
     if(typeof pchRefreshIfOpen==='function') pchRefreshIfOpen();
     /* La configuración pasa a segundo plano: al cargar datos por primera vez, colapsa el drawer de conexión */
     const dr=document.getElementById("connDrawer");
     if(dr && dr.open && !_connAutoClosed){ dr.open=false; _connAutoClosed=true; }
+    if(__perfOn) console.info(`[PIMS perf] renderAll() total: ${(performance.now()-__t0).toFixed(1)}ms`);
   };
   setTimeout(__pasoRenderDiferido,0);
 }
