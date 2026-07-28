@@ -1926,7 +1926,7 @@ body.sb-collapsed .sidebar .tab.active{ border-left:none; box-shadow:0 0 0 1px r
 .kpi .tag.ideal{ background:rgba(59,130,246,.16) !important; color:#93C5FD !important; }
 .kpi .tag.y{ background:var(--v7-warn-soft) !important; color:#FCD34D !important; }
 .kpi .tag.nd{ background:rgba(148,163,184,.14) !important; color:#CBD5E1 !important; }
-.kpi.kpi-split{ text-align:left; }
+.kpi.kpi-split{ text-align:center; }
 .kpi.kpi-split .v{ font-size:19px !important; letter-spacing:-.2px; }
 .kpi.kpi-split .l{ white-space:normal; line-height:1.25; }
 .kpi.kpi-split > div > div[style*="flex:1"]{ min-width:0; }
@@ -7404,13 +7404,6 @@ function cardHTML(e){
     prow("Turbidez",a.turb==null?SD:v(a.turb,1)+" NTU",e.estados.turb,trendHTML(a.turb,histMeanNum(e.pool,'turb_num'),1,.2),{key:'turb',pk})+
     prow("Temperatura",vt(a.temp,1," °C"),null,trendHTML(a.temp,histMeanSC(e.pool,'tmp_sc'),1,.3),{key:'temp',pk}));
 
-  const insight=`<div class="insight"><div class="pgroup-h">Proyección y equilibrio · fin del rango</div>
-    ${insightRow("Alcalinidad",e.atBase,e.at_proy,0," ppm",e.at_proy_msg)}
-    ${insightRow("Dureza",e.durBase,e.dur_proy,0," ppm",e.dur_proy_msg)}
-    ${insightRow("pH",e.ph_real_prom,e.ph_proy,2,"",null)}
-    ${e.hh?insightRow("ISL",e.hh.islHoy,e.hh.islFinal,2,"",null):""}
-    <div class="inote">Objetivo de alcalinidad según dureza: ${e.alcObj[0]}–${e.alcObj[1]} ppm${e.hh?" · ISL calculado tras el plan de bisulfato + bicarbonato":""}</div></div>`;
-
   const r=e.rec,ch=[];
   if(r.bisulfato_g) ch.push(`<span class="d act">Bisulfato ${v(r.bisulfato_g/1000,2)} kg</span>`);
   if(r.bicarbonato_g){
@@ -7425,20 +7418,33 @@ function cardHTML(e){
   if(r.naocl_g) ch.push(`<span class="d act">o Hipoclorito Na ${v(r.naocl_g/1000,2)} kg</span>`);
   if(r.cleanblue_ml) ch.push(`<span class="d act">Clean Blue ${v(r.cleanblue_ml,0)} ml</span>`);
   if(!ch.length) ch.push(`<span class="d ok">Sin correccion requerida</span>`);
-  const hhSeq = (e.hh && (r.bisulfato_g||r.bicarbonato_g)) ? `<div class="ie-seq">
+
+  /* La secuencia de cálculo vive DENTRO de la Proyección (no de la Dosis):
+     es la explicación de CÓMO se obtuvo la fila "ISL" de arriba, no un
+     dato aparte. El texto la referencia explícitamente ("la fila ISL de
+     arriba") para que la relación sea inequívoca incluso sin leer código. */
+  const hhSeq = (e.hh && (r.bisulfato_g||r.bicarbonato_g||r.equilibrio_accion)) ? `<div class="ie-seq">
       <button type="button" class="ie-seq-btn" onclick="toggleSeqCalc(this)" aria-expanded="false">
-        <span class="ie-seq-ic">↓</span><span>Secuencia de calculo</span>
+        <span class="ie-seq-ic">↓</span><span>Cómo se calculó el ISL de arriba</span>
       </button>
       <div class="ie-seq-panel">
-        <span style="font-size:11px;color:var(--data-txt);line-height:1.6;display:block;margin-top:3px">
-          <b>pH de referencia:</b> ${v(e.hh_ph,2)} - promedio de ${e.hh_nMuestras} muestra${e.hh_nMuestras===1?"":"s"} del ultimo dia<br>
-          ${r.bisulfato_g?`<b>Delta TA consumida por bisulfato:</b> ${v(r.bisulfato_dTA,2)} ppm<br>`:""}
-          <b>ISL tras el bisulfato:</b> ${v(e.hh.islPost,3)}<br>
-          <b>ISL final del plan:</b> ${v(e.hh.islFinal,3)}
+        <span style="font-size:11px;color:var(--data-txt);line-height:1.7;display:block;margin-top:3px">
+          <b>pH de referencia:</b> ${v(e.hh_ph,2)} · promedio de ${e.hh_nMuestras} muestra${e.hh_nMuestras===1?"":"s"} del último día<br>
+          ${r.bisulfato_g?`<b>① Bisulfato ${v(r.bisulfato_g/1000,2)} kg:</b> consume ${v(r.bisulfato_dTA,2)} ppm de alcalinidad → ISL pasa a <b>${v(e.hh.islPost,3)}</b><br>`:""}
+          <b>${r.bisulfato_g?"②":"①"} Resultado del plan completo:</b> ISL final <b>${v(e.hh.islFinal,3)}</b> — el mismo valor de la fila "ISL" de arriba
         </span>
       </div>
     </div>` : "";
-  const dose=`<div class="dose"><div class="pgroup-h">Dosis recomendada</div><div class="dchips">${ch.join("")}</div>${hhSeq}</div>`;
+
+  const insight=`<div class="insight"><div class="pgroup-h">Proyección y equilibrio · fin del rango</div>
+    ${insightRow("Alcalinidad",e.atBase,e.at_proy,0," ppm",e.at_proy_msg)}
+    ${insightRow("Dureza",e.durBase,e.dur_proy,0," ppm",e.dur_proy_msg)}
+    ${insightRow("pH",e.ph_real_prom,e.ph_proy,2,"",null)}
+    ${e.hh?insightRow("ISL",e.hh.islHoy,e.hh.islFinal,2,"",null):""}
+    <div class="inote">Objetivo de alcalinidad según dureza: ${e.alcObj[0]}–${e.alcObj[1]} ppm${e.hh?" · ISL calculado tras el plan de bisulfato + bicarbonato":""}</div>
+    ${hhSeq}</div>`;
+
+  const dose=`<div class="dose"><div class="pgroup-h">Dosis recomendada</div><div class="dchips">${ch.join("")}</div></div>`;
 
   let detailHTML="";
   if(SHOW_PROJ){
