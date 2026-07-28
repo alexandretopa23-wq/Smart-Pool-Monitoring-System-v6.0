@@ -1886,6 +1886,103 @@ body.sb-collapsed .sidebar .tab.active{ border-left:none; box-shadow:0 0 0 1px r
 }
 
 /* ---------- 3 · INDICADORES DE DESEMPEÑO: tarjetas premium ---------- */
+
+/* ── Nuevo contenedor 50/50 con gauge velocímetros ── */
+.kpi-box{
+  background:linear-gradient(135deg,rgba(255,255,255,0.055) 0%,rgba(255,255,255,0.018) 100%);
+  border:1px solid rgba(255,255,255,0.10);
+  border-radius:18px;
+  position:relative;overflow:hidden;
+  box-shadow:0 2px 32px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.07) inset,0 -1px 0 rgba(0,0,0,.4) inset;
+  margin-bottom:12px;
+}
+.kpi-box::before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(ellipse 70% 40% at 50% -5%,rgba(6,182,212,.07) 0%,transparent 70%);
+  pointer-events:none;
+}
+.kpi-box::after{
+  content:"";position:absolute;top:0;left:8%;right:8%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(6,182,212,.35),rgba(230,81,0,.25),transparent);
+}
+.kpi-box-cols{display:flex;min-height:480px}
+.kpi-box-left{
+  flex:0 0 50%;border-right:1px solid rgba(255,255,255,.07);
+  display:flex;flex-direction:column;padding:14px 0 10px;
+}
+.kpi-box-right{
+  flex:0 0 50%;display:flex;flex-direction:column;padding:12px 0 10px;
+}
+/* gauge items columna izquierda */
+.kg-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:4px 12px 8px}
+.kg-item+.kg-item{border-top:1px solid rgba(255,255,255,.05)}
+.kg-title{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(148,163,184,.6);font-weight:500;text-align:center;margin-bottom:3px}
+.kg-svg{width:100%;max-width:210px;display:block;margin:0 auto}
+.kg-badge-ok{padding:2px 9px;border-radius:20px;font-size:9px;font-weight:600;background:rgba(16,185,129,.14);color:#10b981;border:1px solid rgba(16,185,129,.22);margin-top:2px;display:inline-block}
+.kg-badge-warn{padding:2px 9px;border-radius:20px;font-size:9px;font-weight:600;background:rgba(245,158,11,.14);color:#f59e0b;border:1px solid rgba(245,158,11,.22);margin-top:2px;display:inline-block}
+.kg-badge-crit{padding:2px 9px;border-radius:20px;font-size:9px;font-weight:600;background:rgba(239,68,68,.14);color:#ef4444;border:1px solid rgba(239,68,68,.22);margin-top:2px;display:inline-block}
+.kg-badge-nd{padding:2px 9px;border-radius:20px;font-size:9px;font-weight:600;background:rgba(148,163,184,.12);color:#94a3b8;border:1px solid rgba(148,163,184,.2);margin-top:2px;display:inline-block}
+.kg-sub{font-size:8px;color:rgba(100,116,139,.6);text-align:center;margin-top:2px;line-height:1.3}
+/* cloro items columna derecha */
+.kc-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 16px;gap:7px}
+.kc-item+.kc-item{border-top:1px solid rgba(255,255,255,.05)}
+.kc-label{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(148,163,184,.55);font-weight:500;text-align:center}
+.kc-pairs{display:flex;gap:8px;width:100%}
+.kc-half{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 6px}
+.kc-sub{font-size:8px;color:rgba(148,163,184,.45);text-transform:uppercase;letter-spacing:.06em;text-align:center}
+.kc-val{font-size:24px;font-weight:700;line-height:1;letter-spacing:-.5px}
+.kc-unit{font-size:9px;color:rgba(148,163,184,.5)}
+.kc-norm{font-size:8px;color:rgba(100,116,139,.55);text-align:center;margin-top:2px;line-height:1.3}
+.kc-val.g{color:#10b981}.kc-val.r{color:#ef4444}.kc-val.y{color:#f59e0b}.kc-val.nd{color:#94a3b8}
+
+/* botones detalle (misma línea que antes pero ahora van fuera del kpi-box) */
+.kpi-box-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+
+/* ── Barra de leyenda glass 3D ── */
+.legend-glass{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:9px 14px;
+  margin:0 0 10px;
+  position:relative;
+  box-shadow:0 4px 20px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.06) inset,0 8px 32px rgba(0,0,0,.35);
+}
+.legend-glass::before{
+  content:"";position:absolute;inset:0;border-radius:12px;
+  background:linear-gradient(90deg,rgba(6,182,212,.025) 0%,transparent 50%);
+  pointer-events:none;
+}
+.legend-glass::after{
+  content:"";position:absolute;top:0;left:6%;right:6%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(6,182,212,.2),transparent);
+  border-radius:50%;
+}
+.legend-glass span{display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(148,163,184,.55)}
+.legend-glass i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.legend-glass .lg-note{font-size:9px;color:rgba(100,116,139,.6);flex:1;min-width:160px}
+.legend-glass .lg-right{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0}
+/* botón ocultar sedes — inline dentro de la barra leyenda, sin agregar altura */
+.btn-hide-sedes{
+  padding:3px 9px;border-radius:6px;font-size:9.5px;font-weight:500;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+  color:rgba(148,163,184,.65);cursor:pointer;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:4px;line-height:1;
+  transition:background .15s,color .15s;
+}
+.btn-hide-sedes:hover{background:rgba(255,255,255,.09);color:#e2e8f0}
+
+/* cumplimiento donut — conserva estilo previo, solo ajuste de tamaño */
+.comp-donut-wrap{position:relative;width:64px;height:64px;flex-shrink:0}
+.comp-donut-wrap svg{width:100%;height:100%}
+.comp-donut-ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.comp-donut-val{font-size:18px;font-weight:700;color:#fff;line-height:1}
+.comp-donut-lbl{font-size:8px;color:#f97316;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+
+@media(max-width:900px){.kpi-box-cols{flex-direction:column}.kpi-box-left,.kpi-box-right{flex:none;border-right:none;border-bottom:1px solid rgba(255,255,255,.07)}}
+@media(max-width:640px){.kc-pairs{flex-direction:column}}
+
 .kpis{ gap:12px; }
 .kpi{
   border-radius:var(--v7-r-lg) !important;
@@ -4575,14 +4672,20 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
         <div><div class="mod-hero-tit">Monitoreo</div><div class="mod-hero-sub">Indicadores de desempeño y estado por piscina</div></div>
       </div>
       <div class="panel" id="indicadoresPanel"></div>
-      <div class="legend">
+      <div class="legend-glass">
         <span><i class="dot v"></i> Sin riesgo</span>
         <span><i class="dot y"></i> Riesgo bajo</span>
         <span><i class="dot o"></i> Riesgo medio</span>
         <span><i class="dot r"></i> Riesgo alto</span>
         <span><i class="dot nd"></i> Sin medición</span>
-        <span style="color:var(--muted)">· IRAPI ponderado: Cl libre 20% · ORP 15% · pH 10% · Turbidez 5% · CYA 5% (Girardot). Cloro combinado no pondera.</span>
-        <span style="margin-left:auto"><button class="gh sm" id="btnProj" onclick="toggleProj()">Mostrar proyección pH/cloro</button></span>
+        <span class="lg-note">· IRAPI ponderado: Cl libre 20% · ORP 15% · pH 10% · Turbidez 5% · CYA 5% (Girardot). Cloro combinado no pondera.</span>
+        <div class="lg-right">
+          <button class="btn-hide-sedes" id="btnHideSedes" onclick="toggleSedesMonitoreo()">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" id="iconHideSedes"><path d="M1 7L5 3L9 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span id="lblHideSedes">Ocultar sedes</span>
+          </button>
+          <button class="gh sm" id="btnProj" onclick="toggleProj()">Mostrar proyección pH/cloro</button>
+        </div>
       </div>
       <div id="tablero"></div>
     </div>
@@ -6718,6 +6821,16 @@ document.addEventListener("keydown", function(ev){
   if(document.body.classList.contains("drawer-open") && typeof closeDrawer==="function"){ closeDrawer(); }
 });
 function expandFilters(){ const fb=document.getElementById("filterBar"); if(fb){ fb.classList.remove("collapsed"); fb.classList.add("ma-open"); } const btn=document.getElementById("fbSummary"); if(btn){ btn.classList.add("is-open"); btn.setAttribute("aria-expanded","true"); } }
+function toggleSedesMonitoreo(){
+  const tb=document.getElementById("tablero");
+  if(!tb) return;
+  const hidden=tb.style.display==="none";
+  tb.style.display=hidden?"":"none";
+  const ico=document.getElementById("iconHideSedes");
+  const lbl=document.getElementById("lblHideSedes");
+  if(ico) ico.innerHTML=hidden?'<path d="M1 7L5 3L9 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>':'<path d="M1 3L5 7L9 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>';
+  if(lbl) lbl.textContent=hidden?"Ocultar sedes":"Mostrar sedes";
+}
 function toggleProj(){ SHOW_PROJ=!SHOW_PROJ; document.getElementById("btnProj").textContent=SHOW_PROJ?"Ocultar proyección pH/cloro":"Mostrar proyección pH/cloro"; document.getElementById("btnProj").className=SHOW_PROJ?"acc sm":"gh sm"; renderTablero(); }
 function toggleIslDetail(){ SHOW_ISL_DETAIL=!SHOW_ISL_DETAIL; renderIndicadores(getFilt()); }
 function toggleDurDetail(){ SHOW_DUR_DETAIL=!SHOW_DUR_DETAIL; renderIndicadores(getFilt()); }
@@ -7479,49 +7592,200 @@ function renderIndicadores(f){
       <div class="note">Eficiencia de formación de ácido hipocloroso y perdida de cloro según Res. 234 de 2026</div>`;
   }
 
+  // ── helpers de gauge SVG ──────────────────────────────────────────────────
+  // Genera el SVG de velocímetro semicircular.
+  // val: valor numérico, min/max: escala, color: hex stroke, decimals: precisión display
+  // idealMin/idealMax: zona ideal (opcional, halo destacado)
+  // La aguja parte del pivote inferior y apunta hacia arriba; el valor se muestra
+  // centrado en el arco, por ENCIMA del pivote, de modo que la aguja nunca lo tapa.
+  const gaugeArcPath="M 16 96 A 84 84 0 0 1 184 96"; // semicírculo 180°, r=84, longitud arco≈263.9
+  const arcLen=263.9;
+  const gaugeNeedleAngle=(val,mn,mx)=>{
+    const pct=Math.max(0,Math.min(1,(val-mn)/(mx-mn)));
+    return -90+pct*180; // -90° (izq) → +90° (der)
+  };
+  const gaugeBadgeCls=(st)=> st==='ideal'?'kg-badge-ok':(st==='cumple'?'kg-badge-ok':(st==='revisar'?'kg-badge-crit':'kg-badge-nd'));
+  const gaugeValColor=(st)=> st==='ideal'||st==='cumple'?null:(st==='revisar'?'#ef4444':'#94a3b8');
+
+  // ISL: escala -3 a +3, ideal -0.5 a +0.5
+  const islVal= I.islProm!=null?I.islProm:0;
+  const islHasData= I.islProm!=null;
+  const islAngle= islHasData? gaugeNeedleAngle(islVal,-3,3):0;
+  const islColor= I.islStat==='revisar'?'#ef4444':(I.islStat==='ideal'||I.islStat==='cumple'?'#10b981':'#94a3b8');
+  // ideal zone: -0.5 a +0.5 → 33.3%-66.7% del arco → offset para dasharray highlighting
+  const islIdealOffset= arcLen*(1-0.333); // cubre zona central (0.333 a 0.667)
+  const islIdealLen= arcLen*0.333;
+
+  // Dureza: escala 0-700, ideal ≤400
+  const durVal= I.durProm!=null?I.durProm:0;
+  const durHasData= I.durProm!=null;
+  const durAngle= durHasData? gaugeNeedleAngle(durVal,0,700):0;
+  const durColor= I.durStat==='revisar'?'#ef4444':(I.durStat==='ideal'||I.durStat==='cumple'?'#06b6d4':'#94a3b8');
+
+  // Alcalinidad: si I.alcProm existe (campo del objeto indicadores), si no se omite
+  // Nota: se lee I.alcProm (promedio de alcalinidad del filtro), campo ya calculado por indicadores()
+  const alcVal= (I.alcProm!=null)?I.alcProm:0;
+  const alcHasData= I.alcProm!=null;
+  const alcAngle= alcHasData? gaugeNeedleAngle(alcVal,0,150):0;
+  const alcStat= !alcHasData?'nd':((alcVal>=80&&alcVal<=120)?'ideal':((alcVal>0&&alcVal<=150)?'cumple':'revisar'));
+  const alcColor= alcStat==='revisar'?'#ef4444':(alcStat==='ideal'||alcStat==='cumple'?'#a78bfa':'#94a3b8');
+  const alcTxt= alcStat==='ideal'?'Ideal':(alcStat==='cumple'?'Cumple':(alcStat==='revisar'?'No cumple':'Sin dato'));
+
+  // cloro: colores según estado
+  const clV=(st)=> st==='cumple'?'g':(st==='revisar'?'r':(st==='nd'?'nd':''));
+
   cont.innerHTML=`<h2>Indicadores de desempeño</h2>
-    <div class="kpis" style="margin-bottom:6px">
-      <div class="kpi ${I.islStat==='revisar'?'r':(I.islStat==='nd'?'':'g')}"><div class="v ${I.islStat==='revisar'?'r':(I.islStat==='nd'?'':'g')}">${I.islProm!=null?v(I.islProm,2):"—"}</div><div class="l">${I.islLbl||"ISL promedio"}</div><div style="margin-top:6px">${tagH(I.islStat,I.islTxt)}</div></div>
-      <div class="kpi ${I.durStat==='revisar'?'r':(I.durStat==='nd'?'':'g')}"><div class="v ${I.durStat==='revisar'?'r':(I.durStat==='nd'?'':'g')}">${I.durProm!=null?v(I.durProm,0)+" ppm":"—"}</div><div class="l">${I.durLbl||"Dureza promedio"}</div><div style="margin-top:6px">${tagH(I.durStat,I.durTxt)}</div></div>
-      <div class="kpi kpi-split ${I.ccPisc.stat==='revisar'||I.ccEstr.stat==='revisar'?'r':((I.ccPisc.stat==='nd'&&I.ccEstr.stat==='nd')?'':'g')}">
-        <div class="l" style="margin-top:0;margin-bottom:8px">Cloro comb.</div>
-        <div style="display:flex;gap:10px">
-          <div style="flex:1">
-            <div class="v ${I.ccPisc.stat==='cumple'?'g':(I.ccPisc.stat==='revisar'?'r':'')}" style="font-size:21px">${I.ccPisc.prom!=null?v(I.ccPisc.prom,2):"—"}</div>
-            <div class="l">Piscinas</div>
-            <div style="margin-top:5px">${tagCC(I.ccPisc.stat,I.ccPisc.lim)}</div>
-          </div>
-          <div style="flex:1;border-left:1px solid var(--line);padding-left:10px">
-            <div class="v ${I.ccEstr.stat==='cumple'?'g':(I.ccEstr.stat==='revisar'?'r':'')}" style="font-size:21px">${I.ccEstr.prom!=null?v(I.ccEstr.prom,2):"—"}</div>
-            <div class="l">Estructura sim.</div>
-            <div style="margin-top:5px">${tagCC(I.ccEstr.stat,I.ccEstr.lim)}</div>
+  <div class="kpi-box">
+    <div class="kpi-box-cols">
+
+      <!-- ═══ COLUMNA IZQUIERDA: GAUGES ═══ -->
+      <div class="kpi-box-left">
+
+        <!-- ISL -->
+        <div class="kg-item">
+          <div class="kg-title">ISL · Índice de Saturación de Langelier</div>
+          <svg class="kg-svg" viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="gIslPIMS" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ef4444"/><stop offset="33%" stop-color="#f59e0b"/>
+                <stop offset="50%" stop-color="#10b981"/><stop offset="67%" stop-color="#f59e0b"/>
+                <stop offset="100%" stop-color="#ef4444"/>
+              </linearGradient>
+            </defs>
+            <path d="${gaugeArcPath}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-linecap="round"/>
+            <path d="${gaugeArcPath}" fill="none" stroke="url(#gIslPIMS)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${arcLen}" stroke-dashoffset="0"/>
+            <path d="${gaugeArcPath}" fill="none" stroke="rgba(16,185,129,0.2)" stroke-width="13" stroke-linecap="round"
+              stroke-dasharray="${arcLen}" stroke-dashoffset="${arcLen*0.667}"/>
+            <text x="6" y="104" font-size="7" fill="rgba(239,68,68,0.6)" text-anchor="middle">-3</text>
+            <text x="194" y="104" font-size="7" fill="rgba(239,68,68,0.6)" text-anchor="middle">+3</text>
+            <text x="100" y="20" font-size="7" fill="rgba(148,163,184,0.4)" text-anchor="middle">0</text>
+            <text x="52" y="108" font-size="6" fill="rgba(16,185,129,0.5)" text-anchor="middle">-0,5</text>
+            <text x="148" y="108" font-size="6" fill="rgba(16,185,129,0.5)" text-anchor="middle">+0,5</text>
+            <text x="100" y="86" font-size="20" font-weight="700" fill="${islColor}" text-anchor="middle">${islHasData?v(islVal,2):"—"}</text>
+            ${islHasData?`<line x1="100" y1="96" x2="100" y2="38" stroke="${islColor}" stroke-width="2" stroke-linecap="round" transform="rotate(${islAngle} 100 96)" style="filter:drop-shadow(0 0 3px ${islColor})"/>
+            <circle cx="100" cy="96" r="4" fill="${islColor}" opacity="0.2"/>
+            <circle cx="100" cy="96" r="2.5" fill="${islColor}"/>`:''}
+          </svg>
+          <span class="${gaugeBadgeCls(I.islStat)}">${I.islTxt||"Sin dato"}</span>
+          <div class="kg-sub">Ideal: −0,5 a +0,5 · Norma: −3 a +3</div>
+        </div>
+
+        <!-- DUREZA -->
+        <div class="kg-item">
+          <div class="kg-title">${I.durLbl||"Dureza cálcica promedio"}</div>
+          <svg class="kg-svg" viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="gDurPIMS" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#10b981"/><stop offset="57%" stop-color="#10b981"/>
+                <stop offset="72%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#ef4444"/>
+              </linearGradient>
+            </defs>
+            <path d="${gaugeArcPath}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-linecap="round"/>
+            <path d="${gaugeArcPath}" fill="none" stroke="url(#gDurPIMS)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${arcLen}" stroke-dashoffset="0"/>
+            <path d="${gaugeArcPath}" fill="none" stroke="rgba(6,182,212,0.18)" stroke-width="13" stroke-linecap="round"
+              stroke-dasharray="${arcLen}" stroke-dashoffset="${arcLen*0.571}"/>
+            <text x="6" y="104" font-size="7" fill="rgba(148,163,184,0.4)" text-anchor="middle">0</text>
+            <text x="194" y="104" font-size="7" fill="rgba(148,163,184,0.4)" text-anchor="middle">700</text>
+            <text x="100" y="20" font-size="7" fill="rgba(148,163,184,0.35)" text-anchor="middle">350</text>
+            <text x="150" y="108" font-size="6" fill="rgba(6,182,212,0.5)" text-anchor="middle">400</text>
+            <text x="100" y="86" font-size="20" font-weight="700" fill="${durColor}" text-anchor="middle">${durHasData?v(durVal,0):"—"}</text>
+            ${durHasData&&I.durProm!=null?`<text x="128" y="86" font-size="9" fill="${durColor}" opacity="0.75">ppm</text>`:''}
+            ${durHasData?`<line x1="100" y1="96" x2="100" y2="38" stroke="${durColor}" stroke-width="2" stroke-linecap="round" transform="rotate(${durAngle} 100 96)" style="filter:drop-shadow(0 0 3px ${durColor})"/>
+            <circle cx="100" cy="96" r="4" fill="${durColor}" opacity="0.2"/>
+            <circle cx="100" cy="96" r="2.5" fill="${durColor}"/>`:''}
+          </svg>
+          <span class="${gaugeBadgeCls(I.durStat)}">${I.durTxt||"Sin dato"}</span>
+          <div class="kg-sub">Ideal ≤ 400 ppm · Norma máx. 700 ppm CaCO₃</div>
+        </div>
+
+        <!-- ALCALINIDAD -->
+        <div class="kg-item">
+          <div class="kg-title">Alcalinidad total promedio</div>
+          <svg class="kg-svg" viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="gAlcPIMS" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ef4444"/><stop offset="53%" stop-color="#f59e0b"/>
+                <stop offset="53%" stop-color="#a78bfa"/><stop offset="80%" stop-color="#a78bfa"/>
+                <stop offset="80%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#ef4444"/>
+              </linearGradient>
+            </defs>
+            <path d="${gaugeArcPath}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-linecap="round"/>
+            <path d="${gaugeArcPath}" fill="none" stroke="url(#gAlcPIMS)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${arcLen}" stroke-dashoffset="0"/>
+            <path d="${gaugeArcPath}" fill="none" stroke="rgba(167,139,250,0.2)" stroke-width="13" stroke-linecap="round"
+              stroke-dasharray="${arcLen}" stroke-dashoffset="${arcLen*0.8}"/>
+            <text x="6" y="104" font-size="7" fill="rgba(148,163,184,0.4)" text-anchor="middle">0</text>
+            <text x="194" y="104" font-size="7" fill="rgba(148,163,184,0.4)" text-anchor="middle">150</text>
+            <text x="100" y="20" font-size="7" fill="rgba(148,163,184,0.35)" text-anchor="middle">75</text>
+            <text x="56" y="108" font-size="6" fill="rgba(167,139,250,0.5)" text-anchor="middle">80</text>
+            <text x="144" y="108" font-size="6" fill="rgba(167,139,250,0.5)" text-anchor="middle">120</text>
+            <text x="100" y="86" font-size="20" font-weight="700" fill="${alcColor}" text-anchor="middle">${alcHasData?v(alcVal,0):"—"}</text>
+            ${alcHasData?`<text x="122" y="86" font-size="9" fill="${alcColor}" opacity="0.75">ppm</text>`:''}
+            ${alcHasData?`<line x1="100" y1="96" x2="100" y2="38" stroke="${alcColor}" stroke-width="2" stroke-linecap="round" transform="rotate(${alcAngle} 100 96)" style="filter:drop-shadow(0 0 3px ${alcColor})"/>
+            <circle cx="100" cy="96" r="4" fill="${alcColor}" opacity="0.2"/>
+            <circle cx="100" cy="96" r="2.5" fill="${alcColor}"/>`:''}
+          </svg>
+          <span class="${gaugeBadgeCls(alcStat)}">${alcTxt}</span>
+          <div class="kg-sub">Ideal: 80–120 ppm · Norma máx. 150 ppm CaCO₃</div>
+        </div>
+
+      </div>
+
+      <!-- ═══ COLUMNA DERECHA: CLORO ═══ -->
+      <div class="kpi-box-right">
+
+        <!-- CLORO LIBRE -->
+        <div class="kc-item">
+          <div class="kc-label">Cloro libre</div>
+          <div class="kc-pairs">
+            <div class="kc-half">
+              <span class="kc-sub">Piscinas</span>
+              <span class="kc-val ${clV(I.desPisc.st)}">${I.desPisc.prom!=null?v(I.desPisc.prom,2):"—"}</span>
+              <span class="kc-unit">ppm</span>
+              ${tagD(I.desPisc.st,I.desPisc.txt)}
+              <span class="kc-norm">Mín. 1,5 · Ideal 2–4 ppm</span>
+            </div>
+            <div class="kc-half">
+              <span class="kc-sub">Estruct. sim.</span>
+              <span class="kc-val ${clV(I.desEstr.st)}">${I.desEstr.prom!=null?v(I.desEstr.prom,2):"—"}</span>
+              <span class="kc-unit">ppm</span>
+              ${tagD(I.desEstr.st,I.desEstr.txt)}
+              <span class="kc-norm">Mín. 2,0 · Ideal 3–5 · Máx. 5 ppm</span>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="kpi kpi-split ${I.desPisc.st==='r'||I.desEstr.st==='r'?'r':((I.desPisc.st==='nd'&&I.desEstr.st==='nd')?'':(I.desPisc.st==='o'||I.desEstr.st==='o'?'y':'g'))}">
-        <div class="l" style="margin-top:0;margin-bottom:8px">Desinfección</div>
-        <div style="display:flex;gap:10px">
-          <div style="flex:1">
-            <div class="v ${vcls(I.desPisc.st)}" style="font-size:21px">${I.desPisc.prom!=null?v(I.desPisc.prom,2):"—"}</div>
-            <div class="l">Piscinas</div>
-            <div style="margin-top:5px">${tagD(I.desPisc.st,I.desPisc.txt)}</div>
-          </div>
-          <div style="flex:1;border-left:1px solid var(--line);padding-left:10px">
-            <div class="v ${vcls(I.desEstr.st)}" style="font-size:21px">${I.desEstr.prom!=null?v(I.desEstr.prom,2):"—"}</div>
-            <div class="l">Estructura sim.</div>
-            <div style="margin-top:5px">${tagD(I.desEstr.st,I.desEstr.txt)}</div>
+
+        <!-- CLORO COMBINADO -->
+        <div class="kc-item">
+          <div class="kc-label">Cloro combinado</div>
+          <div class="kc-pairs">
+            <div class="kc-half">
+              <span class="kc-sub">Piscinas</span>
+              <span class="kc-val ${clV(I.ccPisc.stat)}">${I.ccPisc.prom!=null?v(I.ccPisc.prom,2):"—"}</span>
+              <span class="kc-unit">ppm</span>
+              ${tagCC(I.ccPisc.stat,I.ccPisc.lim)}
+              <span class="kc-norm">Norma: &lt; 0,3 ppm</span>
+            </div>
+            <div class="kc-half">
+              <span class="kc-sub">Estruct. sim.</span>
+              <span class="kc-val ${clV(I.ccEstr.stat)}">${I.ccEstr.prom!=null?v(I.ccEstr.prom,2):"—"}</span>
+              <span class="kc-unit">ppm</span>
+              ${tagCC(I.ccEstr.stat,I.ccEstr.lim)}
+              <span class="kc-norm">Norma: &lt; 0,4 ppm</span>
+            </div>
           </div>
         </div>
+
       </div>
     </div>
-    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="${SHOW_ISL_DETAIL?'acc':'gh'} sm" onclick="toggleIslDetail()">${SHOW_ISL_DETAIL?'Ocultar detalle ISL':'Mostrar detalle ISL'}</button>
-      <button class="${SHOW_DUR_DETAIL?'acc':'gh'} sm" onclick="toggleDurDetail()">${SHOW_DUR_DETAIL?'Ocultar detalle dureza':'Mostrar detalle dureza'}</button>
-      <button class="${SHOW_EFIC?'acc':'gh'} sm" onclick="toggleEfic()">${SHOW_EFIC?'Ocultar eficiencia':'Mostrar eficiencia'}</button>
-    </div>
-    ${SHOW_ISL_DETAIL?islTbl:""}
-    ${SHOW_DUR_DETAIL?durTbl:""}
-    ${SHOW_EFIC?eficPanel:""}`;
+  </div>
+  <div class="kpi-box-actions">
+    <button class="${SHOW_ISL_DETAIL?'acc':'gh'} sm" onclick="toggleIslDetail()">${SHOW_ISL_DETAIL?'Ocultar detalle ISL':'Mostrar detalle ISL'}</button>
+    <button class="${SHOW_DUR_DETAIL?'acc':'gh'} sm" onclick="toggleDurDetail()">${SHOW_DUR_DETAIL?'Ocultar detalle dureza':'Mostrar detalle dureza'}</button>
+    <button class="${SHOW_EFIC?'acc':'gh'} sm" onclick="toggleEfic()">${SHOW_EFIC?'Ocultar eficiencia':'Mostrar eficiencia'}</button>
+  </div>
+  ${SHOW_ISL_DETAIL?islTbl:""}
+  ${SHOW_DUR_DETAIL?durTbl:""}
+  ${SHOW_EFIC?eficPanel:""}`;
 
   // "Consumo general" se renderiza aparte, dentro del panel Desempeño Operacional por Sede (botón chip independiente)
   const cgEl=document.getElementById("consumoGeneralPanel");
