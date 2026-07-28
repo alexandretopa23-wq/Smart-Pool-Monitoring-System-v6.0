@@ -4807,142 +4807,19 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
           <span class="modhelp-ic">ℹ</span><span>¿Cómo funciona este módulo?</span><span class="modhelp-arrow">↓</span>
         </button>
         <div class="modhelp-panel">
-          <div class="alertbox"><b>Calculadora ISL:</b> balance normativo con dureza y temperatura medidas, dentro de las bandas de la Res. 0234/2026. <b>Modelo:</b> exploración libre de los 4 parámetros vía sliders, sin restricción de rango operativo.</div>
+          <div class="alertbox"><b>Centro de equilibrio:</b> todos los vasos del filtro activo, ordenados por prioridad del ISL. <b>Plan del día:</b> bisulfato y equilibrio calcocarbónico de un vaso, con la secuencia de cálculo. <b>Simulador:</b> comparación libre entre el modelo Henderson-Hasselbalch y el modelo lineal anterior. <b>Calibración:</b> cómo se comporta la constante 3,845 según el pH de partida — indicador, no parámetro de dosificación.</div>
         </div>
       </div>
 
       <div id="balqSubnav" class="labsubnav">
-        <button class="lst on" data-tab="calc" onclick="setBalqTab('calc')"><span class="lst-ic">⚖️</span><span>Calculadora ISL<span class="lst-sub">Balance normativo</span></span></button>
-        <button class="lst" data-tab="modelo" onclick="setBalqTab('modelo')"><span class="lst-ic">🎛️</span><span>Modelo<span class="lst-sub">Exploración libre</span></span></button>
+        <button class="lst on" data-tab="centro" onclick="setBalqTab('centro')"><span class="lst-ic">📋</span><span>Centro de equilibrio<span class="lst-sub">Todos los vasos del filtro</span></span></button>
+        <button class="lst" data-tab="plan" onclick="setBalqTab('plan')"><span class="lst-ic">⚖️</span><span>Plan del día<span class="lst-sub">Bisulfato y equilibrio</span></span></button>
+        <button class="lst" data-tab="simulador" onclick="setBalqTab('simulador')"><span class="lst-ic">🎛️</span><span>Simulador<span class="lst-sub">H-H vs. modelo anterior</span></span></button>
+        <button class="lst" data-tab="calibracion" onclick="setBalqTab('calibracion')"><span class="lst-ic">📐</span><span>Calibración<span class="lst-sub">Constante 3,845</span></span></button>
       </div>
 
-      <!-- ===== SUB-VISTA: CALCULADORA ISL ===== -->
-      <div id="balq-calc">
-        <div class="top-grid">
-          <div>
-            <div class="iecard">
-              <div class="ie-h"><span class="ie-nm">Parámetros medidos</span></div>
-              <div class="field">
-                <div class="field-row"><label for="balq-ph">pH</label><span class="range-hint">norma: 6.8–7.3</span></div>
-                <input type="number" id="balq-ph" step="0.01" value="7.1">
-                <div class="field-msg" id="balq-ph-fieldmsg"></div>
-              </div>
-              <div class="field">
-                <div class="field-row"><label for="balq-dureza">Dureza cálcica (mg/L CaCO₃)</label><span class="range-hint">máx. 700 · objetivo 400</span></div>
-                <input type="number" id="balq-dureza" step="0.1" value="316.5">
-              </div>
-              <div class="field">
-                <div class="field-row"><label for="balq-alcalinidad">Alcalinidad (mg/L CaCO₃)</label><span class="range-hint">objetivo según dureza</span></div>
-                <input type="number" id="balq-alcalinidad" step="0.1" value="85.6">
-                <div class="field-msg" id="balq-alc-fieldmsg"></div>
-              </div>
-              <div class="field">
-                <div class="field-row"><label for="balq-temp">Temperatura (°C)</label><span class="range-hint">fija por servicio</span></div>
-                <input type="number" id="balq-temp" step="0.1" value="31.2">
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div class="iecard" id="balq-isl-card">
-              <div class="ie-h"><span class="ie-nm">ISL resultante</span></div>
-              <div class="balq-isl-hero">
-                <div>
-                  <div class="ie-kk" title="Índice de Saturación de Langelier (LSI). Mide la tendencia del agua a disolver o precipitar carbonato de calcio. Banda ideal: −0.3 a +0.3. Valores negativos → agua agresiva/corrosiva; positivos → tendencia incrustante.">ISL</div>
-                  <div class="balq-isl-value" id="balq-isl-out">0.00</div>
-                </div>
-                <span class="balq-status-pill" id="balq-status-pill">—</span>
-                <div style="flex:1;min-width:200px;">
-                  <svg id="balq-isl-gauge" viewBox="0 0 400 60" style="width:100%;height:60px;display:block;"></svg>
-                </div>
-              </div>
-              <div class="balq-isl-formula">ISL = pH + <b id="balq-f-cd">–</b> + <b id="balq-f-ca">–</b> + <b id="balq-f-ct">–</b> − 12.1</div>
-            </div>
-
-            <div class="iecard" style="margin-top:14px">
-              <div class="ie-h"><span class="ie-nm">Predicción de balance</span></div>
-              <div class="balq-balance-grid">
-                <div class="balq-balance-card">
-                  <h3>Ajuste inmediato (dureza fija en su valor medido)</h3>
-                  <div id="balq-balance-hoy"></div>
-                </div>
-                <div class="balq-balance-card">
-                  <h3>Meta estructural (cuando dureza llegue a 400 ppm)</h3>
-                  <div id="balq-balance-meta"></div>
-                </div>
-              </div>
-              <div class="modhelp" id="modhelp-balq-calc" style="margin-top:10px">
-                <button type="button" class="modhelp-btn" onclick="toggleModHelp(this)" aria-expanded="false">
-                  <span class="modhelp-ic">ℹ</span><span>¿Cómo se calcula?</span><span class="modhelp-arrow">↓</span>
-                </button>
-                <div class="modhelp-panel">
-                  <div class="alertbox">Con CT fijo, se resuelve pH + CA(alcalinidad) = ISL objetivo (borde más cercano de la banda ideal −0.3/0.3) − CT − CD(dureza). Se prueba primero con alcalinidad en el punto medio de su banda objetivo; si el pH resultante cae fuera de 6.8–7.3, se fija el pH en el límite de norma más cercano y se resuelve la alcalinidad necesaria dentro de su banda permitida. Si el ISL medido ya está dentro de la banda ideal, no se propone ningún ajuste.</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="iecard" style="margin-top:14px">
-              <div class="ie-h"><span class="ie-nm">Diagnóstico priorizado — qué corregir primero</span></div>
-              <div id="balq-diag-list"></div>
-            </div>
-          </div>
+      <div id="balq"></div>
         </div>
-
-        <div class="panels-grid">
-          <div class="iecard">
-            <div class="ie-h"><span class="ie-nm">pH</span><span class="ie-sal" id="balq-ph-current">—</span></div>
-            <svg id="balq-chart-ph" viewBox="0 0 560 90" style="width:100%;height:90px;display:block;margin-top:10px;"></svg>
-            <div class="method-note" id="balq-ph-note"></div>
-          </div>
-          <div class="iecard">
-            <div class="ie-h"><span class="ie-nm">Alcalinidad → coeficiente CA</span><span class="ie-sal" id="balq-alc-current">—</span></div>
-            <svg id="balq-chart-alc" viewBox="0 0 560 160" style="width:100%;display:block;margin-top:10px;"></svg>
-            <div class="method-note" id="balq-alc-note"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== SUB-VISTA: MODELO (exploración libre por sliders) ===== -->
-      <div id="balq-modelo" style="display:none">
-        <div class="iecard">
-          <div class="ie-h"><span class="ie-nm">Configure los 4 parámetros</span></div>
-          <div class="balq-model-sliders">
-            <div class="balq-model-field">
-              <div class="balq-model-label-row"><label for="balq-m-alc">Alcalinidad</label><span class="balq-model-val" id="balq-m-alc-val">85 ppm</span></div>
-              <input type="range" id="balq-m-alc" min="0" max="150" step="1" value="85">
-            </div>
-            <div class="balq-model-field">
-              <div class="balq-model-label-row"><label for="balq-m-dur">Dureza cálcica</label><span class="balq-model-val" id="balq-m-dur-val">316 ppm</span></div>
-              <input type="range" id="balq-m-dur" min="0" max="700" step="1" value="316">
-            </div>
-            <div class="balq-model-field">
-              <div class="balq-model-label-row"><label for="balq-m-ph">pH</label><span class="balq-model-val" id="balq-m-ph-val">7.1</span></div>
-              <input type="range" id="balq-m-ph" min="6.5" max="8" step="0.1" value="7.1">
-            </div>
-            <div class="balq-model-field">
-              <div class="balq-model-label-row"><label for="balq-m-temp">Temperatura</label><span class="balq-model-val" id="balq-m-temp-val">31°C</span></div>
-              <input type="range" id="balq-m-temp" min="28" max="37" step="1" value="31">
-            </div>
-          </div>
-        </div>
-
-        <div class="iecard" id="balq-modelo-isl-card" style="margin-top:14px">
-          <div class="ie-h"><span class="ie-nm">ISL resultante de esta configuración</span></div>
-          <div class="balq-isl-hero">
-            <div>
-              <div class="ie-kk" title="Índice de Saturación de Langelier (LSI). Mide la tendencia del agua a disolver o precipitar carbonato de calcio. Banda ideal: −0.3 a +0.3. Valores negativos → agua agresiva/corrosiva; positivos → tendencia incrustante.">ISL</div>
-              <div class="balq-isl-value" id="balq-m-isl-out">0.00</div>
-            </div>
-            <span class="balq-status-pill" id="balq-m-status-pill">—</span>
-            <div style="flex:1;min-width:200px;">
-              <svg id="balq-m-isl-gauge" viewBox="0 0 400 60" style="width:100%;height:60px;display:block;"></svg>
-            </div>
-          </div>
-          <div class="balq-isl-formula">ISL = pH + <b id="balq-m-f-cd">–</b> + <b id="balq-m-f-ca">–</b> + <b id="balq-m-f-ct">–</b> − 12.1</div>
-          <div class="note">Rango de exploración libre — no es una recomendación operativa: dureza (0–700), alcalinidad (0–150) y pH (6.5–8) permiten explorar sensibilidad del ISL fuera de la banda normativa. La temperatura se limita a 28–37°C, el rango real de servicio.</div>
-        </div>
-      </div>
-    </div>
 
     <div class="view" id="v-diag"><div class="view-export" style="display:none"></div>
       <div class="mod-hero">
@@ -14876,7 +14753,7 @@ let __evalPoolCache = new Map();
 const PIMS_RENDER_FNS_BY_TAB = {
   monitoreo: ()=>renderTablero(), comp: ()=>renderComp(), consumo: ()=>renderConsumo(),
   cal: ()=>renderCal(), diag: ()=>renderDiag(), param: ()=>renderParam(),
-  lab: ()=>renderLab(), activos: ()=>renderActivos()
+  lab: ()=>renderLab(), activos: ()=>renderActivos(), balq: ()=>hhRenderBalance()
 };
 let __renderAllEpoch = 0;
 
@@ -16847,11 +16724,264 @@ function loadDemo(){
    igResolverBalanceISL/igDiagnosticoISL/alcObjetivo/rango ya definidas
    arriba — ninguna fórmula se duplica.
    ================================================================= */
+/* =====================================================================
+   FASE 3 · Balance Químico v2 — módulo dinámico integrado al filtro
+   ─────────────────────────────────────────────────────────────────────
+   Sustituye las dos sub-vistas estáticas (Calculadora ISL / Modelo) por
+   4 pestañas que SÍ leen getFilt()/poolPassFilter() como el resto de
+   PIMS. Reutiliza balqDrawGauge()/balqDrawCurve()/balqStatusPill() sin
+   modificarlas — son genéricas, ya recibían el id del SVG y los datos
+   por parámetro. NO reimplementa el motor: cada evalPool(pool,f) ya
+   trae e.hh (hhMotorQuimico) calculado — este módulo solo lo presenta.
+   balqRecalcular()/balqRecalcularModelo()/igResolverBalanceISL() quedan
+   en el archivo sin invocarse (balqInit() ya usa if(el) antes de cada
+   getElementById — no truena al no encontrar los inputs viejos).
+   ===================================================================== */
+let BALQ_TAB = "centro";
+let BALQ_SEL = null;
+
 function setBalqTab(t){
+  BALQ_TAB = t;
   document.querySelectorAll('#balqSubnav .lst').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
-  document.getElementById('balq-calc').style.display = t==='calc' ? '' : 'none';
-  document.getElementById('balq-modelo').style.display = t==='modelo' ? '' : 'none';
-  if(t==='modelo') balqRecalcularModelo();
+  hhRenderBalance();
+}
+
+function hhAbrirPlan(pk){
+  BALQ_SEL = pk;
+  BALQ_TAB = 'plan';
+  document.querySelectorAll('#balqSubnav .lst').forEach(b=>b.classList.toggle('on', b.dataset.tab==='plan'));
+  hhRenderBalance();
+}
+
+function hhRenderBalance(){
+  const cont = document.getElementById('balq');
+  if(!cont) return;
+  const f = getFilt();
+  const pools = POOLS.filter(p=>poolPassFilter(p,f));
+  if(!pools.length){ cont.innerHTML = emptyMsg("Ningún vaso coincide con el filtro seleccionado."); return; }
+  if(BALQ_TAB==='centro') hhRenderCentro(cont, pools, f);
+  else if(BALQ_TAB==='plan') hhRenderPlan(cont, pools, f);
+  else if(BALQ_TAB==='simulador') hhRenderSimulador(cont, pools, f);
+  else hhRenderCalibracion(cont, pools, f);
+}
+
+/* ---------- 1 · Centro de equilibrio ---------- */
+function hhRenderCentro(cont, pools, f){
+  const rows = pools.map(p=>({p, e:evalPool(p,f)})).filter(x=>x.e && x.e.med && x.e.hh && !x.e.hh.sinDato);
+  if(!rows.length){ cont.innerHTML = emptyMsg("Ningún vaso del filtro tiene datos suficientes para calcular el equilibrio."); return; }
+  const ord={req:0,rec:1,opt:2};
+  rows.sort((a,b)=>(ord[a.e.hh.prio.k]-ord[b.e.hh.prio.k])||(Math.abs(b.e.hh.islPost)-Math.abs(a.e.hh.islPost)));
+  const c={req:0,rec:0,opt:0}; let kgBis=0,kgBic=0,nBis=0;
+  rows.forEach(({e})=>{ c[e.hh.prio.k]++; if(e.hh.bis&&e.hh.bis.aplica){kgBis+=e.hh.bis.kg;nBis++;} if(e.hh.accion==='bicarbonato')kgBic+=e.hh.kgBic; });
+  const kpis = `<div class="kpis" style="margin-bottom:14px">
+    <div class="kpi r"><div class="v r">${c.req}</div><div class="l">Requeridas</div></div>
+    <div class="kpi y"><div class="v y">${c.rec}</div><div class="l">Recomendadas</div></div>
+    <div class="kpi g"><div class="v g">${c.opt}</div><div class="l">En banda</div></div>
+    <div class="kpi"><div class="v a">${v(kgBis,1)} kg</div><div class="l">Bisulfato hoy (${nBis} vasos)</div></div>
+    <div class="kpi"><div class="v a">${v(kgBic,1)} kg</div><div class="l">Bicarbonato hoy</div></div>
+  </div>`;
+  const trs = rows.map(({p,e})=>{
+    const M=e.hh, a=e.agg||{};
+    let acc='<span class="hint">—</span>';
+    if(M.accion==='bicarbonato' && M.kgBic>=0.05) acc = `Bicarbonato <b>${v(M.kgBic,2)} kg</b>`;
+    else if(M.accion==='campana') acc = `Cloro cálcico · <b>${M.dias} d</b>`;
+    else if(M.accion==='purga') acc = `Purga <b>${v(M.vPurga,1)} m³</b>`;
+    else if(M.accion==='bajarTA') acc = `TA baja sola → ${v(M.taObj,0)} ppm`;
+    const prioCls = M.prio.k==='req'?'r':(M.prio.k==='rec'?'y':'v');
+    const bisTxt = (M.bis&&M.bis.aplica) ? `<b>${v(M.bis.kg,2)} kg</b>` : '<span class="hint">—</span>';
+    const pk = poolKey(p.sede,p.piscina);
+    return `<tr onclick="hhAbrirPlan('${pk}')" style="cursor:pointer" tabindex="0" onkeydown="if(event.key==='Enter')hhAbrirPlan('${pk}')">
+      <td><b>${p.piscina}</b><br><span class="hint" style="font-size:11px">${p.sede} · ${v(p.vol,p.vol<10?1:0)} m³</span></td>
+      <td>${a.ph!=null?v(a.ph,2):'—'}</td>
+      <td><b>${v(M.islPost,3)}</b></td>
+      <td>${bisTxt}</td>
+      <td>${acc}</td>
+      <td><span class="tag ${prioCls}">${M.prio.t}</span></td>
+    </tr>`;
+  }).join('');
+  cont.innerHTML = `${kpis}
+    <div class="tablewrap"><table><thead><tr><th>Vaso</th><th>pH</th><th>ISL</th><th>Bisulfato</th><th>Acción de equilibrio</th><th>Prioridad</th></tr></thead>
+    <tbody>${trs}</tbody></table></div>
+    <div class="note" style="margin-top:8px">La columna <b>ISL</b> es el valor tras dosificar el bisulfato, sin corregir alcalinidad — sobre ese valor se asigna la prioridad. Toca una fila para abrir su plan.</div>`;
+}
+
+/* ---------- 2 · Plan del día ---------- */
+function hhRenderPlan(cont, pools, f){
+  let p = null;
+  if(f.pisc) p = pools.find(x=>x.piscina===f.pisc);
+  if(!p && BALQ_SEL) p = pools.find(x=>poolKey(x.sede,x.piscina)===BALQ_SEL);
+  if(!p) p = pools[0];
+  const e = evalPool(p, f);
+  const selectorHtml = pools.length>1 ? `<div class="field" style="max-width:340px;margin-bottom:14px">
+      <label for="hh-plan-sel">Vaso</label>
+      <select id="hh-plan-sel" onchange="hhAbrirPlan(this.value)">
+        ${pools.map(x=>`<option value="${poolKey(x.sede,x.piscina)}" ${x===p?'selected':''}>${x.piscina} · ${x.sede}</option>`).join('')}
+      </select></div>` : '';
+  if(!e || !e.med || !e.hh || e.hh.sinDato){
+    cont.innerHTML = selectorHtml + emptyMsg(`${p.piscina} (${p.sede}) no tiene datos suficientes en el rango filtrado para calcular el equilibrio.`);
+    return;
+  }
+  const M=e.hh, R=rango(p.tipo);
+  const prioCls = M.prio.k==='req'?'bad':(M.prio.k==='rec'?'warn':'good');
+
+  let bisHtml;
+  if(M.bis.aplica){
+    bisHtml = `<div class="iecard good">
+      <div class="ie-h"><span class="ie-nm">1 · Bisulfato de sodio</span><span class="tag r">Requerida</span></div>
+      <div class="balq-isl-value" style="font-size:32px">${v(M.bis.kg,2)} <small style="font-size:15px">kg</small></div>
+      <div class="method-note">Corrige pH <b>${v(e.hh_ph,2)} → 7,25</b>. Promedio de ${e.hh_nMuestras} muestra${e.hh_nMuestras===1?'':'s'} del último día.</div>
+      <div class="balq-isl-formula" style="margin-top:8px">ΔTA consumida: <b>${v(M.bis.dTA,2)} ppm</b> · TA tras dosificar: <b>${v(M.taPost,1)} ppm</b></div>
+    </div>`;
+  } else {
+    const banda = M.bis.razon==='banda';
+    bisHtml = `<div class="iecard">
+      <div class="ie-h"><span class="ie-nm">1 · Bisulfato de sodio</span><span class="tag ${banda?'nd':'cumple'}">${banda?'En banda':'En objetivo'}</span></div>
+      <div class="method-note">${banda?`pH <b>${v(e.hh_ph,2)}</b> sobre objetivo pero bajo el disparo de 7,40 — dosis en gramos, no pesable con exactitud.`:`pH <b>${v(e.hh_ph,2)}</b> en objetivo o por debajo.`}</div>
+    </div>`;
+  }
+
+  let eqBody='';
+  if(M.accion==='bicarbonato' && M.kgBic>=0.05){
+    eqBody = `<div class="balq-isl-value" style="font-size:32px">${v(M.kgBic,2)} <small style="font-size:15px">kg</small></div>
+      <div class="method-note">Bicarbonato, sobre la TA <b>posterior</b> al bisulfato (${v(M.taPost,1)} ppm) → objetivo ${v(M.taObj,0)} ppm.</div>`;
+  } else if(M.accion==='campana'){
+    const pr = Math.max(3,Math.min(100,100*e.durBase/M.durObj));
+    eqBody = `<div class="balq-isl-value" style="font-size:32px">${v(M.dias,0)} <small style="font-size:15px">días</small></div>
+      <div class="method-note">Campaña de dureza — <b>no se dosifica</b>: se acumula con la demanda de cloro cálcico (${v(M.durDia,2)} ppm/día). Hipoclorito Ca acumulado: <b>${v(M.kgHipoCa,1)} kg</b>.</div>
+      <div class="bar" style="height:8px;border-radius:99px;background:rgba(148,163,184,.2);margin-top:8px;overflow:hidden"><div style="height:100%;width:${pr}%;background:linear-gradient(90deg,var(--st-info),var(--st-info-dk))"></div></div>`;
+  } else if(M.accion==='purga'){
+    eqBody = `<div class="balq-isl-value" style="font-size:32px">${v(M.vPurga,1)} <small style="font-size:15px">m³</small></div>
+      <div class="method-note">Purga de dilución — sobran ${v(Math.abs(M.dDur),0)} ppm de dureza, sin producto que la retire (${v(M.vPurga/p.vol*100,1)}% del vaso).</div>`;
+  } else {
+    eqBody = `<div class="balq-isl-value" style="font-size:32px">${v(M.taObj,0)} <small style="font-size:15px">ppm</small></div>
+      <div class="method-note">No dosifiques bicarbonato — la TA debe <b>bajar</b> a ${v(M.taObj,1)} ppm y el bisulfato ya la reduce.</div>`;
+  }
+  const eqHtml = `<div class="iecard ${prioCls}">
+    <div class="ie-h"><span class="ie-nm">2 · Equilibrio calcocarbónico</span><span class="tag ${M.prio.k==='req'?'r':(M.prio.k==='rec'?'y':'v')}">${M.prio.t}</span></div>
+    ${eqBody}
+  </div>`;
+
+  const gaugeId = 'hh-plan-gauge';
+  const seqHtml = `<div class="ie-seq">
+      <button type="button" class="ie-seq-btn" onclick="toggleSeqCalc(this)" aria-expanded="false"><span class="ie-seq-ic">↓</span><span>Cómo se calculó el ISL de abajo</span></button>
+      <div class="ie-seq-panel"><span style="font-size:11px;color:var(--data-txt);line-height:1.7;display:block;margin-top:3px">
+        <b>① Estado actual:</b> ISL ${v(M.islHoy,3)}<br>
+        ${M.bis.aplica?`<b>② Tras el bisulfato:</b> ISL ${v(M.islPost,3)}<br>`:''}
+        <b>${M.bis.aplica?'③':'②'} Tras el plan completo:</b> ISL final <b>${v(M.islFinal,3)}</b>
+      </span></div></div>`;
+
+  cont.innerHTML = `${selectorHtml}
+    <div class="panels-grid">${bisHtml}${eqHtml}</div>
+    <div class="iecard" style="margin-top:14px">
+      <div class="ie-h"><span class="ie-nm">Trayectoria del ISL</span></div>
+      <svg id="${gaugeId}" viewBox="0 0 560 90" style="width:100%;height:90px;display:block;margin-top:6px"></svg>
+      ${seqHtml}
+    </div>`;
+  balqDrawGauge(gaugeId, -1.2, 1.2, M.islFinal, R.isl_ideal, R.isl);
+}
+
+/* ---------- 3 · Simulador (H-H vs. modelo lineal anterior) ---------- */
+function hhRenderSimulador(cont, pools, f){
+  let p = pools.find(x=>poolKey(x.sede,x.piscina)===BALQ_SEL) || pools.find(x=>x.piscina===f.pisc) || pools[0];
+  const e0 = evalPool(p, f);
+  const base = { ph:(e0&&e0.hh_ph!=null)?e0.hh_ph:7.5, ta:(e0&&e0.atBase!=null)?e0.atBase:100,
+    dur:(e0&&e0.durBase!=null)?e0.durBase:300, T:(e0&&e0.agg&&e0.agg.temp!=null)?e0.agg.temp:30 };
+
+  const selectorHtml = pools.length>1 ? `<div class="field" style="max-width:340px;margin-bottom:14px">
+      <label for="hh-sim-sel">Vaso de referencia (volumen y punto de partida)</label>
+      <select id="hh-sim-sel" onchange="BALQ_SEL=this.value;hhRenderBalance()">
+        ${pools.map(x=>`<option value="${poolKey(x.sede,x.piscina)}" ${x===p?'selected':''}>${x.piscina} · ${x.sede}</option>`).join('')}
+      </select></div>` : '';
+
+  cont.innerHTML = `${selectorHtml}
+    <div class="iecard">
+      <div class="ie-h"><span class="ie-nm">Configure el punto de partida</span></div>
+      <div class="balq-model-sliders">
+        <div class="balq-model-field"><div class="balq-model-label-row"><label for="hh-s-ph">pH</label><span class="balq-model-val" id="hh-s-ph-val">${base.ph.toFixed(2)}</span></div>
+          <input type="range" id="hh-s-ph" min="7.25" max="8.2" step="0.01" value="${base.ph}"></div>
+        <div class="balq-model-field"><div class="balq-model-label-row"><label for="hh-s-ta">Alcalinidad</label><span class="balq-model-val" id="hh-s-ta-val">${v(base.ta,0)} ppm</span></div>
+          <input type="range" id="hh-s-ta" min="40" max="200" step="1" value="${base.ta}"></div>
+        <div class="balq-model-field"><div class="balq-model-label-row"><label for="hh-s-t">Temperatura</label><span class="balq-model-val" id="hh-s-t-val">${v(base.T,1)}°C</span></div>
+          <input type="range" id="hh-s-t" min="25" max="38" step="0.1" value="${base.T}"></div>
+      </div>
+    </div>
+    <div class="panels-grid" style="margin-top:14px">
+      <div class="iecard good" id="hh-sim-card-hh">
+        <div class="ie-h"><span class="ie-nm">Propuesto · Henderson-Hasselbalch</span></div>
+        <div class="balq-isl-value" id="hh-sim-hh-out" style="font-size:28px">—</div>
+        <div class="method-note" id="hh-sim-hh-note"></div>
+      </div>
+      <div class="iecard" id="hh-sim-card-leg">
+        <div class="ie-h"><span class="ie-nm">Actual en producción · lineal (3,845)</span></div>
+        <div class="balq-isl-value" id="hh-sim-leg-out" style="font-size:28px">—</div>
+        <div class="method-note" id="hh-sim-leg-note"></div>
+      </div>
+    </div>
+    <div class="alertbox" id="hh-sim-alert" style="margin-top:12px"></div>`;
+
+  const V = p.vol;
+  const recalc = ()=>{
+    const ph=parseFloat(document.getElementById('hh-s-ph').value);
+    const ta=parseFloat(document.getElementById('hh-s-ta').value);
+    const T=parseFloat(document.getElementById('hh-s-t').value);
+    document.getElementById('hh-s-ph-val').textContent=ph.toFixed(2);
+    document.getElementById('hh-s-ta-val').textContent=v(ta,0)+' ppm';
+    document.getElementById('hh-s-t-val').textContent=v(T,1)+'°C';
+
+    const hh = hhDosisBisulfato(ph,ta,T,V);
+    if(hh.aplica){
+      document.getElementById('hh-sim-hh-out').innerHTML = v(hh.kg,2)+' <small style="font-size:14px">kg</small>';
+      document.getElementById('hh-sim-hh-note').innerHTML = `Consume <b>${v(hh.dTA,2)} ppm</b> de alcalinidad · pureza real 0,952`;
+    } else {
+      document.getElementById('hh-sim-hh-out').textContent = 'Sin dosificación';
+      document.getElementById('hh-sim-hh-note').textContent = hh.razon==='banda' ? 'En banda muerta (7,25–7,40)' : 'pH en objetivo';
+    }
+    let legKg=null;
+    if(ph>7.30){
+      const gLeg = P.k_ph_bisulfato*V*(ph-7.30)/P.conc_bisulfato*(ta/100);
+      legKg = gLeg/1000;
+      document.getElementById('hh-sim-leg-out').innerHTML = v(legKg,2)+' <small style="font-size:14px">kg</small>';
+      document.getElementById('hh-sim-leg-note').innerHTML = `Fórmula lineal hacia pH 7,30`;
+    } else {
+      document.getElementById('hh-sim-leg-out').textContent = 'Sin dosificación';
+      document.getElementById('hh-sim-leg-note').textContent = 'pH ≤ 7,30';
+    }
+    const al = document.getElementById('hh-sim-alert');
+    if(hh.aplica && legKg!=null){
+      const err = (legKg-hh.kg)/hh.kg*100;
+      al.innerHTML = `<b>Desviación del modelo actual:</b> ${err>0?'sobredosifica':'subdosifica'} en <b>${(err>=0?'+':'')}${v(err,1)}%</b> (${v(Math.abs(legKg-hh.kg),2)} kg) frente a la solución exacta.`;
+    } else {
+      al.innerHTML = `<b>Comparación no aplicable</b> — los modelos difieren en el umbral de disparo (7,30 vs 7,40 pH).`;
+    }
+  };
+  ['hh-s-ph','hh-s-ta','hh-s-t'].forEach(id=>document.getElementById(id).addEventListener('input',recalc));
+  recalc();
+}
+
+/* ---------- 4 · Calibración de la constante 3,845 ---------- */
+function hhRenderCalibracion(cont, pools, f){
+  let p = pools.find(x=>poolKey(x.sede,x.piscina)===BALQ_SEL) || pools.find(x=>x.piscina===f.pisc) || pools[0];
+  const e = evalPool(p, f);
+  const ta = (e&&e.atBase!=null)?e.atBase:100, T=(e&&e.agg&&e.agg.temp!=null)?e.agg.temp:30;
+  const ph = (e&&e.hh_ph!=null)?e.hh_ph:7.6;
+  const V = p.vol;
+  const kEq = (phv)=>{
+    if(phv<=7.26) return null;
+    const D=Math.pow(10,7.25-phv), R=Math.pow(10,phv-hhPka1(T));
+    const dTA=ta*(1-D)/(1+D*R), kg=dTA*V/(416.5*0.952);
+    return kg*1000*0.10/(V*(phv-7.25)*(ta/100));
+  };
+  const kActual = kEq(Math.max(ph,7.31));
+  cont.innerHTML = `<div class="iecard">
+      <div class="ie-h"><span class="ie-nm">Constante equivalente vs. pH inicial — ${p.piscina} (${p.sede})</span></div>
+      <svg id="hh-calib-curve" viewBox="0 0 560 160" style="width:100%;display:block;margin-top:10px"></svg>
+      <div class="method-note">Punto de operación actual: pH ${v(ph,2)} → constante equivalente <b>${kActual!=null?v(kActual,3):'—'}</b> g.</div>
+    </div>
+    <div class="note" style="margin-top:10px"><b>Lectura:</b> si 3,845 fuera una constante real, la curva sería horizontal. No lo es: cae al subir el pH inicial porque el sistema carbonato se acidifica con más facilidad lejos del pKa₁. Este panel es un indicador de calibración, no un parámetro de dosificación — compara tus dosificaciones reales de campo contra el valor teórico para detectar deriva operacional.</div>`;
+  balqDrawCurve('hh-calib-curve', {
+    fn: xv => kEq(xv) || 0, currentX: Math.max(ph,7.31), currentY: kActual || 0,
+    xMin: 7.30, xMax: 8.20, xTicks:[7.3,7.6,7.9,8.2]
+  });
 }
 
 function balqStatusPill(isl){
