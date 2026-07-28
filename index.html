@@ -380,6 +380,18 @@ button.sm{padding:6px 12px;font-size:var(--fs-12)}
 .dose .d{display:inline-block;background:var(--data-2);border:1px solid var(--data-line-soft);border-radius:8px;padding:5px 9px;font-weight:700;font-size:var(--fs-11);color:var(--data-txt)}
 .dose .d.act{background:#FFE3CC;color:#A8500A;border:1px solid #F6C99E}
 .dose .d.ok{background:#E7F6EC;color:#1B7A43;border:1px solid #B7E2C6}
+/* FASE 4 · etiqueta de prioridad del equilibrio ISL, dentro del chip de bicarbonato */
+.hh-prio{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 6px;border-radius:99px;vertical-align:middle;white-space:nowrap}
+.hh-prio-req{background:rgba(231,76,60,.22);color:#B0271B}
+.hh-prio-rec{background:rgba(230,126,34,.22);color:#9A4A00}
+.hh-prio-opt{background:rgba(148,163,184,.20);color:var(--data-muted)}
+/* FASE 4 · control de modo de exportación (Centro de Informes) */
+.expmode{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.expmode .lbl{font-size:var(--fs-10-5);color:var(--data-muted);font-weight:700;margin-right:2px}
+.expmode button{font-size:var(--fs-10-5);font-weight:700;padding:5px 11px;border-radius:20px;cursor:pointer;
+  border:1px solid var(--data-line-soft);background:rgba(255,255,255,.04);color:var(--data-muted);transition:all .15s}
+.expmode button[aria-pressed=true]{background:rgba(230,81,0,.22);border-color:var(--acen-2);color:#FFD8C2}
 
 /* detalle de proyección (toggle) */
 .detail{margin-top:12px;padding:11px 12px;background:var(--data-2);border:1px solid var(--data-line-soft);border-radius:12px}
@@ -4428,10 +4440,15 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
             <span class="inf-cat-tag">Operativo</span>
           </div>
           <h3>Tarjetas de Monitoreo (imagen)</h3>
-          <p>Exporta las tarjetas de estado de piscina —tal como se ven en pantalla— como imágenes PNG en alta definición, listas para reportes puntuales. Respeta el filtro de fecha, sede y piscina activo en Monitoreo. No incluye la proyección de fin de rango.</p>
+          <p>Exporta las tarjetas de estado de piscina —tal como se ven en pantalla— como imágenes PNG en alta definición, listas para reportes puntuales. Respeta el filtro de fecha, sede y piscina activo en Monitoreo. Elige abajo si incluir la proyección y las recomendaciones, o solo los parámetros con el IRAPI.</p>
           <div class="inf-meta">
             <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Variable según cantidad</span>
             <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" stroke-width="2"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>PNG (.zip)</span>
+          </div>
+          <div class="expmode" style="margin:0 0 10px">
+            <span class="lbl">Exportar con:</span>
+            <button type="button" data-mode="completo" aria-pressed="true" onclick="setExportMode('completo')">Proyección y recomendaciones</button>
+            <button type="button" data-mode="params" aria-pressed="false" onclick="setExportMode('params')">Solo parámetros + IRAPI</button>
           </div>
           <div class="inf-card-foot">
             <span class="inf-fmt">Según filtro activo en Monitoreo</span>
@@ -6425,16 +6442,25 @@ function evalPool(pool,f){
 
   // ----- dosis recomendadas -----
   const rec={};
-  // AT de referencia para la dosis = alcalinidad PROYECTADA (modelo cronológico); si no hay, AT promedio
+  // Motor unico H-H: referencia de pH = promedio de muestras del ULTIMO DIA del rango
+  const medUltimo = r.med;
+  const phUltimo = (medUltimo && medUltimo.ph_sc && medUltimo.ph_sc.n) ? medUltimo.ph_sc.s/medUltimo.ph_sc.n : null;
+  const nMuestrasUltimo = (medUltimo && medUltimo.ph_sc) ? medUltimo.ph_sc.n : 0;
   const atRef=(r.at_proy!=null?r.at_proy:Valc);
-  if(Vph!=null && Vph>P.ph_obj){
-    const atDosis=(atRef!=null?atRef:100);
-    // factor AT_proy/100: ajusta la dosis a la alcalinidad proyectada vigente (no sobre/subestima)
-    rec.bisulfato_g = P.k_ph_bisulfato*V*(Vph-P.ph_obj)/P.conc_bisulfato*(atDosis/100);
-    rec.bisulfato_atFactor = atDosis;
+  const durRef=(durBase!=null?durBase:Vdur);
+  const Tref=(agg.temp!=null?agg.temp:28);
+  const clRef=(r.cl_aportado_dia>0 ? r.cl_aportado_dia : (pool.tipo==="Estricta"?P.cl_ideal_estricta*0.4:P.cl_ideal_normal*0.4));
+  const hh = phUltimo!=null ? hhMotorQuimico({ph:phUltimo, ta:atRef, dur:durRef, T:Tref, V, cl:clRef}) : null;
+  r.hh = hh; r.hh_nMuestras = nMuestrasUltimo; r.hh_ph = phUltimo;
+  if(hh && hh.bis && hh.bis.aplica){
+    rec.bisulfato_g = hh.bis.kg*1000;
+    rec.bisulfato_dTA = hh.bis.dTA;
   }
-  const objMin=r.alcObj[0];
-  if(atRef!=null && atRef<objMin){ rec.bicarbonato_g=(objMin-atRef)*P.k_bicarbonato*V; rec.bicarbonato_obj=r.alcObj; }
+  if(hh && hh.accion==="bicarbonato" && hh.kgBic>0.05){
+    rec.bicarbonato_g = hh.kgBic*1000;
+    rec.bicarbonato_obj = [hh.taObj, hh.taObj];
+  }
+  if(hh){ rec.equilibrio_accion=hh.accion; rec.equilibrio_prioridad=hh.prio; }
   const idealCl = pool.tipo==="Estricta"?P.cl_ideal_estricta:P.cl_ideal_normal;
   if(Vcll!=null && Vcll<R.cl_libre[0]){
     rec.pulsar_kg=(idealCl-Vcll)*V/(P.pureza*1000);
@@ -7077,6 +7103,15 @@ function buildCentroPrioridades(evals,alerts,f){
     }
   }catch(err){ /* best-effort */ }
 
+  /* ---- 7 · Equilibrio ISL requerido (motor único — prioridad ya calculada en evalPool) ---- */
+  const islReq=evals.filter(e=>e.hh && e.hh.prio && e.hh.prio.k==='req');
+  if(islReq.length){
+    items.push({lvl: islReq.length>=3?'crit':'att',
+      txt:`Equilibrio calcocarbónico requerido en <b>${islReq.length}</b> piscina${islReq.length===1?'':'s'} (ISL fuera de ±${P.isl_tol} tras el bisulfato).`,
+      scope: islReq.slice(0,3).map(e=>`${e.pool.sede} · ${e.pool.piscina}`).join(' · '),
+      go:'balq'});
+  }
+
   const ord={crit:0,att:1,ok:2};
   items.sort((a,b)=>ord[a.lvl]-ord[b.lvl]);
   return items.slice(0,5);
@@ -7298,7 +7333,7 @@ function renderExec(evals,alerts){
 
 /* ---------- alertas inteligentes (categorizadas por parámetro) ---------- */
 function buildAlerts(evals){
-  const cat={alc:[],clc:[],cll:[],dur:[]};
+  const cat={alc:[],clc:[],cll:[],dur:[],isl:[]};
   evals.forEach(e=>{
     if(!e.med)return; const nm=`${e.pool.sede} · ${e.pool.piscina}`, a=e.agg, es=e.estados;
     // Cloro libre
@@ -7313,9 +7348,14 @@ function buildAlerts(evals){
     // Dureza (medida alta o proyectada > 350)
     if(es.dur==='r'){ const dv=a.dur_prom!=null?a.dur_prom:a.dur_ult; if(dv!=null) cat.dur.push({sev:'o',t:`Dureza elevada — ${v(dv,0)} ppm (máx ${e.R.dur_max})`,pool:nm}); }
     else if(e.dur_proy!=null && e.dur_proy>350) cat.dur.push({sev:'y',t:`Dureza proyectada > 350 ppm — ${v(e.dur_proy,0)} ppm`,pool:nm});
+    // Equilibrio calcocarbónico (motor único hhMotorQuimico — prioridad ya calculada en evalPool)
+    if(e.hh && e.hh.prio){
+      if(e.hh.prio.k==='req') cat.isl.push({sev:'r',t:`Equilibrio ISL requerido — ${v(e.hh.islPost,3)} tras bisulfato`,pool:nm});
+      else if(e.hh.prio.k==='rec') cat.isl.push({sev:'o',t:`Equilibrio ISL recomendado — ${v(e.hh.islPost,3)} tras bisulfato`,pool:nm});
+    }
   });
-  const ord={r:0,o:1,y:2}; Object.values(cat).forEach(arr=>arr.sort((x,y)=>ord[x.sev]-ord[y.sev]));
-  cat.total=cat.alc.length+cat.clc.length+cat.cll.length+cat.dur.length;
+  const ord={r:0,o:1,y:2}; Object.values(cat).forEach(arr=>{ if(Array.isArray(arr)) arr.sort((x,y)=>ord[x.sev]-ord[y.sev]); });
+  cat.total=cat.alc.length+cat.clc.length+cat.cll.length+cat.dur.length+cat.isl.length;
   return cat;
 }
 function alertDrop(title,arr){
@@ -7334,6 +7374,7 @@ function renderAlerts(cat){
       ${alertDrop("Alertas cloro combinado",cat.clc)}
       ${alertDrop("Alertas cloro libre",cat.cll)}
       ${alertDrop("Alertas dureza",cat.dur)}
+      ${alertDrop("Alertas equilibrio ISL",cat.isl)}
     </div></div>`;
 }
 
@@ -7363,20 +7404,41 @@ function cardHTML(e){
     prow("Turbidez",a.turb==null?SD:v(a.turb,1)+" NTU",e.estados.turb,trendHTML(a.turb,histMeanNum(e.pool,'turb_num'),1,.2),{key:'turb',pk})+
     prow("Temperatura",vt(a.temp,1," °C"),null,trendHTML(a.temp,histMeanSC(e.pool,'tmp_sc'),1,.3),{key:'temp',pk}));
 
-  const insight=`<div class="insight"><div class="pgroup-h">Proyección · fin del rango</div>
+  const insight=`<div class="insight"><div class="pgroup-h">Proyección y equilibrio · fin del rango</div>
     ${insightRow("Alcalinidad",e.atBase,e.at_proy,0," ppm",e.at_proy_msg)}
     ${insightRow("Dureza",e.durBase,e.dur_proy,0," ppm",e.dur_proy_msg)}
     ${insightRow("pH",e.ph_real_prom,e.ph_proy,2,"",null)}
-    <div class="inote">Objetivo de alcalinidad según dureza: ${e.alcObj[0]}–${e.alcObj[1]} ppm</div></div>`;
+    ${e.hh?insightRow("ISL",e.hh.islHoy,e.hh.islFinal,2,"",null):""}
+    <div class="inote">Objetivo de alcalinidad según dureza: ${e.alcObj[0]}–${e.alcObj[1]} ppm${e.hh?" · ISL calculado tras el plan de bisulfato + bicarbonato":""}</div></div>`;
 
   const r=e.rec,ch=[];
-  if(r.bisulfato_g) ch.push(`<span class="d act">Bisulfato ${v(r.bisulfato_g/1000,2)} kg${r.bisulfato_atFactor!=null?` <small style="opacity:.7">(AT ${v(r.bisulfato_atFactor,0)})</small>`:""}</span>`);
-  if(r.bicarbonato_g) ch.push(`<span class="d act">Bicarbonato ${v(r.bicarbonato_g/1000,2)} kg</span>`);
+  if(r.bisulfato_g) ch.push(`<span class="d act">Bisulfato ${v(r.bisulfato_g/1000,2)} kg</span>`);
+  if(r.bicarbonato_g){
+    const prioTag = r.equilibrio_prioridad ? ` <small class="hh-prio hh-prio-${r.equilibrio_prioridad.k}">${r.equilibrio_prioridad.t}</small>` : "";
+    ch.push(`<span class="d act">Bicarbonato ${v(r.bicarbonato_g/1000,2)} kg${prioTag}</span>`);
+  } else if(r.equilibrio_accion==="campana"){
+    ch.push(`<span class="d act">Cloro calcico - campana de dureza</span>`);
+  } else if(r.equilibrio_accion==="purga"){
+    ch.push(`<span class="d act">Purga de dilucion</span>`);
+  }
   if(r.pulsar_kg) ch.push(`<span class="d act">Hipoclorito Ca ${v(r.pulsar_kg,2)} kg</span>`);
   if(r.naocl_g) ch.push(`<span class="d act">o Hipoclorito Na ${v(r.naocl_g/1000,2)} kg</span>`);
   if(r.cleanblue_ml) ch.push(`<span class="d act">Clean Blue ${v(r.cleanblue_ml,0)} ml</span>`);
-  if(!ch.length) ch.push(`<span class="d ok">Sin corrección requerida</span>`);
-  const dose=`<div class="dose"><div class="pgroup-h">Dosis recomendada</div><div class="dchips">${ch.join("")}</div></div>`;
+  if(!ch.length) ch.push(`<span class="d ok">Sin correccion requerida</span>`);
+  const hhSeq = (e.hh && (r.bisulfato_g||r.bicarbonato_g)) ? `<div class="ie-seq">
+      <button type="button" class="ie-seq-btn" onclick="toggleSeqCalc(this)" aria-expanded="false">
+        <span class="ie-seq-ic">↓</span><span>Secuencia de calculo</span>
+      </button>
+      <div class="ie-seq-panel">
+        <span style="font-size:11px;color:var(--data-txt);line-height:1.6;display:block;margin-top:3px">
+          <b>pH de referencia:</b> ${v(e.hh_ph,2)} - promedio de ${e.hh_nMuestras} muestra${e.hh_nMuestras===1?"":"s"} del ultimo dia<br>
+          ${r.bisulfato_g?`<b>Delta TA consumida por bisulfato:</b> ${v(r.bisulfato_dTA,2)} ppm<br>`:""}
+          <b>ISL tras el bisulfato:</b> ${v(e.hh.islPost,3)}<br>
+          <b>ISL final del plan:</b> ${v(e.hh.islFinal,3)}
+        </span>
+      </div>
+    </div>` : "";
+  const dose=`<div class="dose"><div class="pgroup-h">Dosis recomendada</div><div class="dchips">${ch.join("")}</div>${hhSeq}</div>`;
 
   let detailHTML="";
   if(SHOW_PROJ){
@@ -7418,7 +7480,7 @@ function cardHTML(e){
       ${insight}
       ${dose}
       ${detailHTML}
-      <button type="button" class="card-export-btn" onclick="downloadCardImage(this)" title="Descargar tarjeta como imagen (sin proyección)">
+      <button type="button" class="card-export-btn" onclick="downloadCardImage(this)" title="Descargar según el modo elegido en Centro de Informes → Tarjetas de Monitoreo">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 4v12m0 0l-4-4m4 4l4-4M5 20h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>Descargar imagen</span>
       </button>
@@ -16012,10 +16074,22 @@ async function ensureHtml2Canvas(){
    - quita controles interactivos que no aportan a un reporte de imagen (badges de hover, etc. se conservan)
    - fuerza un fondo sólido (no transparente) para que la imagen no salga con huecos
    No modifica el nodo original ni ningún dato. */
+let EXPORT_MODE='completo'; // 'completo' | 'params' — controla cardCloneForExport()
+function setExportMode(modo){
+  EXPORT_MODE = modo==='params' ? 'params' : 'completo';
+  document.querySelectorAll('.expmode button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.mode===EXPORT_MODE?'true':'false'));
+}
 function cardCloneForExport(cardEl){
   const clone=cardEl.cloneNode(true);
-  clone.querySelectorAll('.insight').forEach(n=>n.remove());
   clone.querySelectorAll('.card-export-btn').forEach(n=>n.remove());
+  if(EXPORT_MODE==='params'){
+    clone.querySelectorAll('.insight,.dose,.detail').forEach(n=>n.remove());
+  } else {
+    clone.querySelectorAll('.ie-seq').forEach(el=>{
+      el.classList.add('is-open');
+      const b=el.querySelector('.ie-seq-btn'); if(b) b.setAttribute('aria-expanded','true');
+    });
+  }
   clone.style.transform='none';
   clone.style.boxShadow='none';
   clone.style.width=cardEl.getBoundingClientRect().width+'px';
