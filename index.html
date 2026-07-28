@@ -4968,9 +4968,12 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
 /* ===================== CONSTANTES ===================== */
 const P = {
   at_rep:25, dur_rep:10, ph_obj:7.3,
+  ph_obj_dosis:7.25, ph_disparo:7.40, isl_tol:0.30,
   cl_ideal_estricta:4, cl_ideal_normal:2.5,
   k_at_bisulfato:416.5, k_bicarbonato:1.675, k_ph_bisulfato:3.845,
-  pureza:0.68, conc_naoh:0.15, conc_bisulfato:0.1, dur_por_cl:0.8, cleanblue_por_m3:7,
+  pureza:0.68, pureza_bisulfato:0.952, conc_naoh:0.15, conc_bisulfato:0.1,
+  dur_por_cl:0.8, cleanblue_por_m3:7,
+  k_at_hipoCa:null, k_at_hipoNa:null,
   corte_dia:12
 };
 
@@ -5950,6 +5953,78 @@ function calcISL(ph, dur, alc, temp){
 function igCD(d){ return 0.4348*Math.log(d) - 0.395; }
 function igCA(a){ return 0.4349*Math.log(a) + 0.0044; }
 
+/* =====================================================================
+   FASE 1 · MOTOR UNICO DE DOSIFICACION — hhMotorQuimico()
+   ─────────────────────────────────────────────────────────────────────
+   NO PROTEGIDA. Unica fuente de verdad para bisulfato (Henderson-
+   Hasselbalch exacto) y equilibrio calcocarbonico (ISL). evalPool()
+   la invoca — no la reimplementa. Namespace hh*, igual disciplina que
+   ig-, igw-, balq-, lex-, pch- (prefijos ya usados en el resto de PIMS).
+   ===================================================================== */
+const HH_PKA1_TABLE=[[25,6.352],[26,6.349],[27,6.346],[28,6.343],[29,6.340],[30,6.337],
+  [31,6.3246],[32,6.331],[33,6.329],[34,6.326],[35,6.324],[36,6.322],[37,6.320]];
+function hhPka1(T){
+  const t=HH_PKA1_TABLE;
+  if(T<=t[0][0]) return t[0][1];
+  if(T>=t[t.length-1][0]) return t[t.length-1][1];
+  for(let i=0;i<t.length-1;i++){ const [a,va]=t[i],[b,vb]=t[i+1]; if(T>=a&&T<=b) return va+(T-a)/(b-a)*(vb-va); }
+  return t[t.length-1][1];
+}
+function hhDosisBisulfato(ph,ta,T,V){
+  if(ph==null||ph<=P.ph_obj_dosis) return {aplica:false,razon:"objetivo"};
+  if(ph<P.ph_disparo) return {aplica:false,razon:"banda"};
+  const pk=hhPka1(T), D=Math.pow(10,P.ph_obj_dosis-ph), R=Math.pow(10,ph-pk);
+  const dTA=ta*(1-D)/(1+D*R);
+  return {aplica:true,pk,D,R,dTA,kg:dTA*V/(P.k_at_bisulfato*P.pureza_bisulfato)};
+}
+function hhEquilibrioISL(dur,taPost,T,V,clDia){
+  const ph=P.ph_obj_dosis;
+  const caN=0-ph-igCD(dur)-calcularCT(T)+12.1;
+  const taNec=Math.exp((caN-0.0044)/0.4349);
+  const taObj=Math.max(80,Math.min(150,taNec));
+  const clamp=taNec>150?"alto":(taNec<80?"bajo":null);
+  const out={taNec,taObj,clamp};
+  if(!clamp){
+    out.palanca="alcalinidad"; out.islFinal=calcISL(ph,dur,taObj,T);
+    if(taObj>taPost){ out.accion="bicarbonato"; out.kgBic=(taObj-taPost)*P.k_bicarbonato*V/1000; }
+    else { out.accion="bajarTA"; out.dTAbaja=taObj-taPost; out.kgBic=0; }
+    return out;
+  }
+  const cdN=0-ph-igCA(taObj)-calcularCT(T)+12.1;
+  const durNec=Math.exp((cdN+0.395)/0.4348);
+  const durObj=Math.max(50,Math.min(700,durNec));
+  out.durNec=durNec; out.durObj=durObj; out.dDur=durObj-dur;
+  out.islFinal=calcISL(ph,durObj,taObj,T);
+  out.kgBic=taObj>taPost?(taObj-taPost)*P.k_bicarbonato*V/1000:0;
+  if(out.dDur>0){
+    out.palanca="dureza"; out.accion="campana";
+    out.durDia=P.dur_por_cl*clDia; out.dias=Math.ceil(out.dDur/out.durDia);
+    out.kgHipoCa=out.dDur*V/(P.dur_por_cl*P.pureza*1000);
+  } else {
+    out.palanca="dureza"; out.accion="purga";
+    out.vPurga=Math.abs(out.dDur)*V/Math.max(1,dur-P.dur_rep);
+  }
+  return out;
+}
+function hhPrioridadISL(islPost){
+  const a=Math.abs(islPost);
+  if(a<=0.15) return {k:"opt",t:"Opcional"};
+  if(a<=P.isl_tol) return {k:"rec",t:"Recomendada"};
+  return {k:"req",t:"Requerida"};
+}
+function hhMotorQuimico(e){
+  const {ph,ta,dur,T,V,cl}=e;
+  if(ph==null) return {sinDato:true};
+  const bis=hhDosisBisulfato(ph,ta,T,V);
+  const taPost=bis.aplica?ta-bis.dTA:ta, phPost=bis.aplica?P.ph_obj_dosis:ph;
+  const islHoy=calcISL(ph,dur,ta,T), islPost=calcISL(phPost,dur,taPost,T);
+  const eq=hhEquilibrioISL(dur,taPost,T,V,cl);
+  const prio=hhPrioridadISL(islPost);
+  const prioFinal=(eq.accion==="bicarbonato"&&eq.kgBic<0.05)?{k:"opt",t:"Opcional"}:prio;
+  return Object.assign({bis,taPost,phPost,islHoy,islPost,prio:prioFinal},eq);
+}
+
+
 /* Objetivo = banda ideal real de rango() = [-0.3, 0.3] (no un punto fijo).
    Ajuste mínimo: si el ISL medido ya está dentro de la banda, no se propone
    cambio; si está fuera, se apunta al borde más cercano, no al centro. */
@@ -6104,50 +6179,45 @@ function classifyIRAPI(es, isGirardot){
 */
 function modeloPhCronologico(pool, f, V){
   const meds = MED.filter(m=>m.pool===pool && m.fecha).sort((a,b)=>a.fecha-b.fecha);
-  // primer pH medido dentro del rango
   const medsRango = meds.filter(m=>inRange(m.fecha,f));
   const primerPh = medsRango.find(m=>m.ph!=null);
-  if(!primerPh) return null; // sin pH en el rango no se puede proyectar
+  if(!primerPh) return null;
   const tIni = primerPh.fecha;
 
-  // última alcalinidad medida disponible antes o en el inicio del rango
   const alcsPrevias = meds.filter(m=>m.alc!=null && m.fecha<=tIni);
   let atVigente = alcsPrevias.length? alcsPrevias[alcsPrevias.length-1].alc : null;
-  // si no hay AT previa, tomar la primera AT del rango como base
   if(atVigente==null){ const a1=medsRango.find(m=>m.alc!=null); atVigente = a1? a1.alc : 100; }
 
-  // límite superior del rango
   const hLim = f.hasta? (()=>{const d=new Date(f.hasta);d.setHours(23,59,59);return d;})() : null;
 
-  // ---- construir lista de eventos dentro del rango (desde tIni) ----
   const ev=[];
-  // mediciones de alcalinidad dentro del rango (corrigen el modelo hacia adelante)
   meds.filter(m=>m.alc!=null && m.fecha>=tIni && (!hLim||m.fecha<=hLim))
       .forEach(m=>ev.push({fecha:m.fecha, tipo:"med_alc", alc:m.alc, orden:0}));
-  // dosificaciones (bisulfato / bicarbonato) dentro del rango
+
+  /* Dosificaciones dentro del rango — AHORA incluye hipoclorito Ca/Na,
+     que antes no generaban evento y quedaban fuera del modelo. */
   MOVS.filter(m=>m.pool===pool && m.tipo==="SALIDA" && m.cant!=null && m.fecha
         && m.fecha>=tIni && (!hLim||m.fecha<=hLim))
       .forEach(m=>{
-        if(m.prod==="bisulfato")   ev.push({fecha:m.fecha, tipo:"bisulfato", kg:m.cant, orden:2});
-        if(m.prod==="bicarbonato") ev.push({fecha:m.fecha, tipo:"bicarbonato", kg:m.cant, orden:3});
+        if(m.prod==="bisulfato")          ev.push({fecha:m.fecha, tipo:"bisulfato",   kg:m.cant, orden:2});
+        if(m.prod==="bicarbonato")        ev.push({fecha:m.fecha, tipo:"bicarbonato", kg:m.cant, orden:3});
+        if(m.prod==="pulsar")             ev.push({fecha:m.fecha, tipo:"hipoCa",      kg:m.cant, orden:2.5});
+        if(m.prod==="hipoclorito_sodio")  ev.push({fecha:m.fecha, tipo:"hipoNa",      L:m.cant,  orden:2.5});
       });
-  // retrolavado: volumen de purga manual (si existe) → se aplica al FINAL de la cronología,
-  // usando el AT vigente (AT vaso) acumulado tras las dosificaciones del rango.
-  // Fórmula: ΔAT retrolavado = (AT vaso − AT reposición) × (Vol purga / V piscina)
+
   const volPurga = RETRO[poolKey(pool.sede,pool.piscina)];
   const tFinRango = hLim || (ev.length? ev[ev.length-1].fecha : tIni);
-  if(volPurga!=null && volPurga>0){ ev.push({fecha:tFinRango, tipo:"retrolavado", volPurga, orden:9}); }
+  const fechaRetro = (typeof RETRO_FECHA!=="undefined" && RETRO_FECHA[poolKey(pool.sede,pool.piscina)])
+      ? RETRO_FECHA[poolKey(pool.sede,pool.piscina)] : tFinRango;
+  if(volPurga!=null && volPurga>0){ ev.push({fecha:fechaRetro, tipo:"retrolavado", volPurga, orden:9}); }
 
-  // ordenar cronológicamente; a igual fecha: medición(0) → bisulfato(2) → bicarbonato(3) → retrolavado(9)
   ev.sort((a,b)=> (a.fecha-b.fecha) || (a.orden-b.orden));
 
-  // ---- recorrer eventos acumulando AT y pH ----
   let ph = primerPh.ph;
-  let dAT_bis_tot=0, dAT_bic_tot=0, dAT_ret_tot=0;   // totales de efecto sobre AT
+  let dAT_bis_tot=0, dAT_bic_tot=0, dAT_ret_tot=0, dAT_hipo_tot=0;
   const serie=[{fecha:tIni, evento:"pH inicial medido", ph:ph, at:atVigente}];
   ev.forEach(e=>{
     if(e.tipo==="med_alc"){
-      // nueva medición real: reemplaza la AT proyectada de aquí en adelante
       atVigente = e.alc;
       serie.push({fecha:e.fecha, evento:"Medición de alcalinidad", ph:ph, at:atVigente});
     } else if(e.tipo==="retrolavado"){
@@ -6159,7 +6229,7 @@ function modeloPhCronologico(pool, f, V){
       const atUso = atVigente>0? atVigente : 100;
       const dPh = (e.kg*10000)/(P.k_ph_bisulfato*V*atUso);
       ph = ph - dPh;
-      const dAT = P.k_at_bisulfato*e.kg/V;
+      const dAT = P.k_at_bisulfato*P.pureza_bisulfato*e.kg/V;
       dAT_bis_tot += dAT;
       atVigente = Math.max(0, atVigente - dAT);
       serie.push({fecha:e.fecha, evento:`Bisulfato ${v(e.kg,2)} kg (−${(Math.round(dPh*100)/100)} pH)`, ph:ph, at:atVigente});
@@ -6168,10 +6238,27 @@ function modeloPhCronologico(pool, f, V){
       dAT_bic_tot += dAT;
       atVigente = atVigente + dAT;
       serie.push({fecha:e.fecha, evento:`Bicarbonato ${v(e.kg,2)} kg (+${(Math.round(dAT*10)/10)} ppm AT)`, ph:ph, at:atVigente});
+    } else if(e.tipo==="hipoCa"){
+      if(P.k_at_hipoCa!=null){
+        const dAT = P.k_at_hipoCa*e.kg/V;
+        dAT_hipo_tot += dAT;
+        atVigente = atVigente + dAT;
+        serie.push({fecha:e.fecha, evento:`Hipoclorito Ca ${v(e.kg,2)} kg (+${(Math.round(dAT*10)/10)} ppm AT)`, ph:ph, at:atVigente});
+      } else {
+        serie.push({fecha:e.fecha, evento:`Hipoclorito Ca ${v(e.kg,2)} kg (aporte de AT no calibrado — sin efecto en la proyección)`, ph:ph, at:atVigente});
+      }
+    } else if(e.tipo==="hipoNa"){
+      if(P.k_at_hipoNa!=null){
+        const dAT = P.k_at_hipoNa*e.L/V;
+        dAT_hipo_tot += dAT;
+        atVigente = atVigente + dAT;
+        serie.push({fecha:e.fecha, evento:`Hipoclorito Na ${v(e.L,2)} L (+${(Math.round(dAT*10)/10)} ppm AT)`, ph:ph, at:atVigente});
+      } else {
+        serie.push({fecha:e.fecha, evento:`Hipoclorito Na ${v(e.L,2)} L (aporte de AT no calibrado — sin efecto en la proyección)`, ph:ph, at:atVigente});
+      }
     }
   });
 
-  // pH promedio medido por el piscinero en el rango (promedio de lecturas con dato)
   let s=0,n=0; medsRango.forEach(m=>{ if(m.ph_sc){ s+=m.ph_sc.s; n+=m.ph_sc.n; } });
   const ph_real_prom = n? s/n : null;
 
@@ -6181,7 +6268,7 @@ function modeloPhCronologico(pool, f, V){
     at_inicial: serie[0].at,
     at_base: serie[0].at,
     at_base_fecha: alcsPrevias.length? alcsPrevias[alcsPrevias.length-1].fecha : tIni,
-    dAT_bis_tot, dAT_bic_tot, dAT_ret_tot,
+    dAT_bis_tot, dAT_bic_tot, dAT_ret_tot, dAT_hipo_tot,
     ph_proy_final: ph,
     at_proy_final: atVigente,
     ph_real_prom,
