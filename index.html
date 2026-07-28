@@ -6296,12 +6296,20 @@ function modeloPhCronologico(pool, f, V){
 
 /* Evalúa un vaso para las fechas filtradas */
 function evalPool(pool,f){
+  /* Cache de un solo ciclo de render: evalPool() se invoca ~5 veces por
+     piscina dentro de un mismo renderAll() (renderTablero, renderComp,
+     buildCentroPrioridades, dosingConcordance, etc.), cada una repitiendo
+     el mismo trabajo de filtrar/ordenar MED y correr el motor químico.
+     __evalPoolCache se limpia UNA vez al inicio de cada renderAll() —
+     nunca sobrevive a un cambio real de datos o filtro. */
+  const __k = pool.sede+"|"+pool.piscina+"|"+(f.desde?f.desde.getTime():"")+"|"+(f.hasta?f.hasta.getTime():"");
+  if(typeof __evalPoolCache!=="undefined" && __evalPoolCache.has(__k)) return __evalPoolCache.get(__k);
   const V=pool.vol, R=rango(pool.tipo);
   const r={pool,V,R,estados:{},semaforo:"nd"};
   const enRango = medsEnRango(pool,f);             // mediciones dentro del rango (desc)
   const baseMed = ultimaMedHasta(pool, f.hasta);   // última medición <= fecha final
   const used = enRango.length? enRango : (baseMed?[baseMed]:[]);
-  if(!used.length){ r.med=null; return r; }
+  if(!used.length){ r.med=null; if(typeof __evalPoolCache!=="undefined") __evalPoolCache.set(__k,r); return r; }
   r.med = enRango[0] || baseMed;
   r.medEnRango = enRango.length>0;
   r.nMed = enRango.length;
@@ -6468,6 +6476,7 @@ function evalPool(pool,f){
   }
   if(agg.turb!=null && agg.turb>1){ rec.cleanblue_ml=V*P.cleanblue_por_m3; }
   r.rec=rec;
+  if(typeof __evalPoolCache!=="undefined") __evalPoolCache.set(__k,r);
   return r;
 }
 
@@ -14856,7 +14865,24 @@ async function connectOT(){
   igTryRenderWhenReady();
 }
 
+/* Caché de evalPool() de un solo ciclo de render — ver nota dentro de
+   evalPool() (línea ~6298). Se declara aquí, se limpia al inicio de
+   cada renderAll(). Nunca se comparte entre ciclos. */
+let __evalPoolCache = new Map();
+
+/* Mapa único data-v → función de render, reutilizado por renderAll() y
+   por el manejador de clic de pestañas (línea ~16009) — una sola fuente
+   de verdad, sin duplicar la lista de módulos en dos sitios. */
+const PIMS_RENDER_FNS_BY_TAB = {
+  monitoreo: ()=>renderTablero(), comp: ()=>renderComp(), consumo: ()=>renderConsumo(),
+  cal: ()=>renderCal(), diag: ()=>renderDiag(), param: ()=>renderParam(),
+  lab: ()=>renderLab(), activos: ()=>renderActivos()
+};
+let __renderAllEpoch = 0;
+
 function renderAll(){
+  const __epoch = ++__renderAllEpoch;
+  __evalPoolCache = new Map();
   sanitizeDataForClient();
   if(!MED.length && !MOVS.length && !MOVS_OT.length && !LAB.length && !CONTRA.length && !INFRA.length){ updateSystemState(); return; }
   LAST_SYNC=new Date();
@@ -14866,13 +14892,30 @@ function renderAll(){
   if(LAB.length||CONTRA.length) syncLabFiltros();
   updateHeaderChips();
   renderGlobalInsights(getFilt());
-  renderTablero(); renderComp(); renderConsumo(); renderCal(); renderDiag(); renderParam(); renderLab(); renderActivos();
-  updateSystemState();
-  updateFilterSummary();
-  if(typeof pchRefreshIfOpen==='function') pchRefreshIfOpen();
-  /* La configuración pasa a segundo plano: al cargar datos por primera vez, colapsa el drawer de conexión */
-  const dr=document.getElementById("connDrawer");
-  if(dr && dr.open && !_connAutoClosed){ dr.open=false; _connAutoClosed=true; }
+
+  /* La pestaña visible se pinta YA, de forma síncrona — es lo único que
+     el usuario está mirando en este instante. El resto de los módulos
+     (invisibles tras display:none) se difiere en pasos separados que
+     ceden el hilo principal entre uno y otro, para que un clic en otra
+     pestaña, o cualquier otra interacción, no quede encolado detrás de
+     un único bloque largo de trabajo síncrono. */
+  const orden = Object.keys(PIMS_RENDER_FNS_BY_TAB);
+  const activeV = document.querySelector(".tab.active")?.dataset.v;
+  if(activeV && orden.includes(activeV)){ orden.splice(orden.indexOf(activeV),1); orden.unshift(activeV); }
+
+  PIMS_RENDER_FNS_BY_TAB[orden[0]]();
+  let __i=1;
+  const __pasoRenderDiferido=()=>{
+    if(__epoch!==__renderAllEpoch) return; // una llamada más reciente a renderAll() reemplazó esta cadena
+    if(__i<orden.length){ PIMS_RENDER_FNS_BY_TAB[orden[__i]](); __i++; setTimeout(__pasoRenderDiferido,0); return; }
+    updateSystemState();
+    updateFilterSummary();
+    if(typeof pchRefreshIfOpen==='function') pchRefreshIfOpen();
+    /* La configuración pasa a segundo plano: al cargar datos por primera vez, colapsa el drawer de conexión */
+    const dr=document.getElementById("connDrawer");
+    if(dr && dr.open && !_connAutoClosed){ dr.open=false; _connAutoClosed=true; }
+  };
+  setTimeout(__pasoRenderDiferido,0);
 }
 
 /* ===================== SISTEMA DE EXPORTACIÓN MODULAR PIMS =====================
@@ -16010,6 +16053,14 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
   document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
   t.classList.add("active"); document.getElementById("v-"+t.dataset.v).classList.add("active");
+  /* Garantiza que el módulo recién seleccionado tenga contenido fresco
+     de inmediato, incluso si la cadena diferida de renderAll() (ver
+     línea ~14873) todavía no había llegado a este módulo. Gracias a la
+     caché de evalPool() del mismo ciclo, esto es prácticamente gratis
+     cuando el módulo ya se había renderizado, y solo cuesta lo real
+     cuando de verdad hacía falta. */
+  const __fn = (typeof PIMS_RENDER_FNS_BY_TAB!=="undefined") ? PIMS_RENDER_FNS_BY_TAB[t.dataset.v] : null;
+  if(__fn && (MED.length||MOVS.length||MOVS_OT.length||LAB.length||CONTRA.length||INFRA.length)) __fn();
   /* Al entrar a un módulo, volver al inicio: es el punto de referencia para
      el auto-hide de los filtros (reaparecen solo al llegar al tope). */
   window.scrollTo(0,0);
