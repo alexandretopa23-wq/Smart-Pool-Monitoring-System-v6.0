@@ -4375,6 +4375,26 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
         </div>
       </details>
 
+      <details class="src">
+        <summary class="src-h">
+          <span class="src-ic">&#128167;</span>
+          <span class="src-name">Retrolavados <small style="color:var(--muted-d);font-weight:600">&middot; purgas fechadas y caudal de filtro</small></span>
+          <span class="src-badge" data-badge="grp-retro">Sin conectar</span>
+          <span class="src-chev">&#9662;</span>
+        </summary>
+        <div class="src-body">
+          <div class="fld">
+            <label>Enlace Google Sheets &mdash; Retrolavados (CSV)</label>
+            <input type="text" id="linkRetro" placeholder="Pega el enlace de la hoja de retrolavados">
+            <div class="linkslots" id="lslots-retro"></div>
+          </div>
+          <div class="note">Columnas: <b>SEDE &middot; PISCINA &middot; CAUDAL M3H &middot; FECHA &middot; MINUTOS &middot; VOLUMEN M3 &middot; ESTADO</b>. El caudal basta una vez por vaso. Con minutos y caudal el volumen se calcula solo; si tienes el volumen medido, escr&iacute;belo y manda ese. <b>ESTADO</b> = REALIZADO o PLANEADO.</div>
+          <div class="src-actions">
+            <button class="acc" onclick="connectRetro()">Conectar retrolavados</button>
+          </div>
+        </div>
+      </details>
+
     </div>
     </details>
 
@@ -4974,7 +4994,7 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
           <span class="modhelp-ic">ℹ</span><span>¿Cómo funciona este módulo?</span><span class="modhelp-arrow">↓</span>
         </button>
         <div class="modhelp-panel">
-          <div class="alertbox"><b>Centro de equilibrio:</b> todos los vasos del filtro activo, ordenados por prioridad del ISL. <b>Plan del día:</b> bisulfato y equilibrio calcocarbónico de un vaso, con la secuencia de cálculo. <b>Simulador:</b> comparación libre entre el modelo Henderson-Hasselbalch y el modelo lineal anterior. <b>Calibración:</b> cómo se comporta la constante 3,845 según el pH de partida — indicador, no parámetro de dosificación.</div>
+          <div class="alertbox"><b>Centro de equilibrio:</b> todos los vasos del filtro activo, ordenados por prioridad del ISL. <b>Plan del día:</b> bisulfato y equilibrio calcocarbónico de un vaso, con la secuencia de cálculo. <b>Simulador:</b> comparación libre entre el modelo Henderson-Hasselbalch y el modelo lineal anterior. <b>Calibración:</b> cómo se comporta la constante 3,845 según el pH de partida — indicador, no parámetro de dosificación. El objetivo de pH no es fijo: cada vaso apunta al punto de la banda 7,25–7,30 que deja su ISL más cerca de 0, y solo se corrige cuando el pH supera 7,35.</div>
         </div>
       </div>
 
@@ -5156,8 +5176,16 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
 <script>
 /* ===================== CONSTANTES ===================== */
 const P = {
-  at_rep:25, dur_rep:10, ph_obj:7.3,
-  ph_obj_dosis:7.25, ph_disparo:7.40, isl_tol:0.30,
+  at_rep:25, dur_rep:10,
+  /* Dos umbrales distintos, no confundirlos:
+     - ph_banda: DONDE se apunta. Dentro de norma (Res. 0234/2026, max 7,30).
+       hhPhObjetivo() elige el punto de esta banda que deja el ISL mas cerca
+       de 0 con la dureza y la alcalinidad reales del vaso.
+     - ph_tolerancia: CUANDO se corrige. Por encima de la norma a proposito:
+       bajar de 7,30 a 7,25 es una microdosis sin provecho operativo, mientras
+       que bajar desde >7,35 si mueve la aguja. En 7,35 exacto NO se corrige;
+       la correccion se dispara solo por encima. */
+  ph_banda:[7.25,7.30], ph_tolerancia:7.35, isl_tol:0.30,
   cl_ideal_estricta:4, cl_ideal_normal:2.5,
   k_at_bisulfato:416.5, k_bicarbonato:1.675, k_ph_bisulfato:3.845,
   pureza:0.68, pureza_bisulfato:0.952, conc_naoh:0.15, conc_bisulfato:0.1,
@@ -5816,8 +5844,8 @@ let ICO_CRIT=40;          // criterio máximo aceptable de concordancia ICO (% R
 let LAB_ROT={impar:"ASEBIOL",par:"BIOPOLAB"}; // laboratorio por mes impar/par — editable en Parámetros (módulo Laboratorios)
 pimsInitAuth(); /* restaura sesión de cliente guardada en este navegador, si existe (se ejecuta ya declarados MED/MOVS/LAB/CONTRA/INFRA) */
 let TURB_MANUAL={};       // turbidez operacional medida (NTU) POR PISCINA (poolKey) — se ingresa en la sección IRO
-let DIAG={med:null,ins:null,ot:null,unmapped_prod:new Set(),unmapped_pool:new Set(),sin_vol:new Set(),infra:null};
-let autoTimer=null, lastLinks={med:"",ins:"",ot:"",lab:"",contra:"",infra:""};
+let DIAG={med:null,ins:null,ot:null,unmapped_prod:new Set(),unmapped_pool:new Set(),sin_vol:new Set(),infra:null,retro:null};
+let autoTimer=null, lastLinks={med:"",ins:"",ot:"",lab:"",contra:"",infra:"",retro:""};
 let SHOW_PROJ=false;
 let SHOW_ISL_DETAIL=false, SHOW_DUR_DETAIL=false, SHOW_EFIC=false, SHOW_LAB=false;
 /* Recuerda si el usuario colapsó todas las tarjetas de sede (botón "Ocultar
@@ -5834,7 +5862,15 @@ let SHOW_PRED=false, SHOW_PLAN=false;           // calendario de tratamiento
 let CAL_TAB='conc';                              // pestaña activa del módulo: 'conc' (Concordancia, primera) | 'cal' (Calendario y tratamiento)
 let CONC_OPEN=new Set();                         // acordeón abierto por piscina (key=poolKey)
 let SHOW_BLOQUE=false, BLOQUE_PREV_ACT=false;   // cronograma tratamiento en bloque (auto al activarse + override manual)
-let RETRO={};   // volumen de purga manual por poolKey (m³)
+let RETRO={};   // volumen de purga manual por poolKey (m³) — widget legado del Tablero
+/* Historial fechado de retrolavados y caudal por vaso. Fuente de verdad: hoja
+   RETRO anclada (Google Sheets). Mientras no este anclada, se alimenta de la
+   captura local del modulo Calendario, persistida en localStorage namespaced.
+   RETRO_EV[poolKey] = [{fecha, min, m3, estado:'realizado'|'planeado', origen}]
+   CAUDAL[poolKey]   = m3/h de retrolavado del filtro
+   RETRO_FECHA[poolKey] = fecha del ultimo retrolavado realizado — deja de ser
+   la referencia muerta que dosisDespues() consultaba sin que nadie la definiera. */
+let RETRO_EV={}, CAUDAL={}, RETRO_FECHA={};
 let DEMANDA_MANUAL=null; // ppm/día demanda esperada manual (global)
 let PRECIOS={pulsar:null,bisulfato:null,bicarbonato:null,hipoclorito_sodio:null,floculante:null}; // $ COP por kg/L (manual)
 let COST_OPEN=new Set();        // productos con costo estimado visible (proyección a fin de mes)
@@ -6250,15 +6286,40 @@ function hhPka1(T){
   for(let i=0;i<t.length-1;i++){ const [a,va]=t[i],[b,vb]=t[i+1]; if(T>=a&&T<=b) return va+(T-a)/(b-a)*(vb-va); }
   return t[t.length-1][1];
 }
-function hhDosisBisulfato(ph,ta,T,V){
-  if(ph==null||ph<=P.ph_obj_dosis) return {aplica:false,razon:"objetivo"};
-  if(ph<P.ph_disparo) return {aplica:false,razon:"banda"};
-  const pk=hhPka1(T), D=Math.pow(10,P.ph_obj_dosis-ph), R=Math.pow(10,ph-pk);
-  const dTA=ta*(1-D)/(1+D*R);
-  return {aplica:true,pk,D,R,dTA,kg:dTA*V/(P.k_at_bisulfato*P.pureza_bisulfato)};
+/* pH objetivo dinamico dentro de P.ph_banda. ISL es monotono creciente en pH,
+   luego el pH que anula el ISL es analitico: pH0 = 12,1 - CD - CA - CT.
+   Se acota a la banda; si queda acotado, el pH ya no alcanza y el equilibrio
+   pasa a resolverse por alcalinidad/dureza (hhEquilibrioISL). */
+function hhPhObjetivo(dur,ta,T){
+  /* Tope normativo duro (Res. 0234/2026, pH max de rango()): el objetivo
+     NUNCA puede proponer un pH que la propia tarjeta de Monitoreo marcaria
+     fuera de norma y que penalizaria el IRAPI. Si la banda configurada en
+     Parametros excede la norma, manda la norma. */
+  const phMaxNorma=rango().ph[1];
+  const lo=Math.min(P.ph_banda[0],phMaxNorma), hi=Math.min(P.ph_banda[1],phMaxNorma);
+  const topeNorma=P.ph_banda[1]>phMaxNorma;
+  if(dur==null||ta==null||dur<=0||ta<=0) return {ph:lo,phIdeal:null,clamp:"dato",lo,hi,topeNorma};
+  const phIdeal=12.1-igCD(dur)-igCA(ta)-calcularCT(T);
+  return {ph:Math.max(lo,Math.min(hi,phIdeal)),phIdeal,lo,hi,topeNorma,
+          clamp:phIdeal>hi?"alto":(phIdeal<lo?"bajo":null)};
 }
-function hhEquilibrioISL(dur,taPost,T,V,clDia){
-  const ph=P.ph_obj_dosis;
+/* Nucleo puro H-H: kg de bisulfato para llevar ph -> obj. Sin reglas de
+   negocio (banda muerta, objetivo alcanzado). Unico sitio donde vive la
+   formula; hhDosisBisulfato y la pestana Calibracion la comparten. */
+function hhKgBisulfato(ph,ta,T,V,obj){
+  const pk=hhPka1(T), D=Math.pow(10,obj-ph), R=Math.pow(10,ph-pk);
+  const dTA=ta*(1-D)/(1+D*R);
+  return {pk,D,R,dTA,kg:dTA*V/(P.k_at_bisulfato*P.pureza_bisulfato)};
+}
+function hhDosisBisulfato(ph,ta,T,V,phObj){
+  const obj=(phObj!=null?phObj:P.ph_banda[0]);
+  if(ph==null||ph<=obj) return {aplica:false,razon:"objetivo",phObj:obj};
+  /* Tolerancia operativa: en 7,35 exacto NO se corrige. Solo por encima. */
+  if(ph<=P.ph_tolerancia) return {aplica:false,razon:"tolerancia",phObj:obj};
+  return Object.assign({aplica:true,phObj:obj},hhKgBisulfato(ph,ta,T,V,obj));
+}
+function hhEquilibrioISL(dur,taPost,T,V,clDia,phRef){
+  const ph=(phRef!=null?phRef:P.ph_banda[0]);
   const caN=0-ph-igCD(dur)-calcularCT(T)+12.1;
   const taNec=Math.exp((caN-0.0044)/0.4349);
   const taObj=Math.max(80,Math.min(150,taNec));
@@ -6295,15 +6356,237 @@ function hhPrioridadISL(islPost){
 function hhMotorQuimico(e){
   const {ph,ta,dur,T,V,cl}=e;
   if(ph==null) return {sinDato:true};
-  const bis=hhDosisBisulfato(ph,ta,T,V);
-  const taPost=bis.aplica?ta-bis.dTA:ta, phPost=bis.aplica?P.ph_obj_dosis:ph;
+  /* El bisulfato baja la TA y la TA redefine el pH de equilibrio: se itera.
+     Es una contraccion (menos TA -> menor CA -> mayor pH objetivo -> menor
+     dosis -> menos caida de TA), converge en 2-3 pasos. */
+  let phObj=hhPhObjetivo(dur,ta,T), bis=hhDosisBisulfato(ph,ta,T,V,phObj.ph);
+  let taPost=bis.aplica?ta-bis.dTA:ta;
+  for(let i=0;i<4;i++){
+    const po=hhPhObjetivo(dur,taPost,T);
+    const b=hhDosisBisulfato(ph,ta,T,V,po.ph);
+    const tp=b.aplica?ta-b.dTA:ta;
+    const fin=Math.abs(tp-taPost)<0.01;
+    phObj=po; bis=b; taPost=tp;
+    if(fin) break;
+  }
+  /* Orden de palancas: primero pH, despues alcalinidad/dureza.
+     - pH por ENCIMA del objetivo: solo baja dosificando bisulfato. Si la
+       dosis no es pesable (banda muerta) el pH se queda donde esta y el
+       equilibrio se resuelve sobre el pH REAL, no sobre el objetivo.
+     - pH por DEBAJO del objetivo: sube solo (desgasificacion de CO2 e
+       hipoclorito) sin dosificar nada. Se evalua en el objetivo — de lo
+       contrario se recomendaria bicarbonato para compensar un pH que el
+       propio vaso va a corregir sin producto. */
+  const phPost = (ph>phObj.ph) ? (bis.aplica?phObj.ph:ph) : phObj.ph;
   const islHoy=calcISL(ph,dur,ta,T), islPost=calcISL(phPost,dur,taPost,T);
-  const eq=hhEquilibrioISL(dur,taPost,T,V,cl);
+  const eq=hhEquilibrioISL(dur,taPost,T,V,cl,phPost);
   const prio=hhPrioridadISL(islPost);
   const prioFinal=(eq.accion==="bicarbonato"&&eq.kgBic<0.05)?{k:"opt",t:"Opcional"}:prio;
-  return Object.assign({bis,taPost,phPost,islHoy,islPost,prio:prioFinal},eq);
+  /* Reduccion adicional: el equilibrio pediria un pH POR DEBAJO del piso de
+     banda. No es una correccion de pH por norma — es una correccion por ISL.
+     No se ejecuta automaticamente: se marca para validacion, porque bajar de
+     7,25 acerca el vaso al limite inferior util y cambia la eficiencia de
+     cloracion. La alternativa ya calculada es resolverlo por alcalinidad. */
+  const redAdic = (phObj.clamp==="bajo" && phObj.phIdeal!=null)
+    ? {requerida:true, phIdeal:phObj.phIdeal, piso:phObj.lo,
+       delta:phObj.lo-phObj.phIdeal,
+       kg:hhKgBisulfato(phObj.lo,taPost,T,V,phObj.phIdeal).kg,
+       alternativa:eq.accion}
+    : {requerida:false};
+  return Object.assign({bis,taPost,phPost,phObj,redAdic,islHoy,islPost,prio:prioFinal,
+                        durRef:dur,tempRef:T,volRef:V,taHoy:ta,phHoy:ph},eq);
 }
 
+
+/* =====================================================================
+   ESTIMADOR DE SUBIDA NATURAL DE pH — hhTasaSubidaPh()
+   ─────────────────────────────────────────────────────────────────────
+   Responde: cuanto sube el pH de este vaso por dia, sin dosificar acido.
+   Se necesita para proyectar cuanto bisulfato se aplicara entre hoy y el
+   dia de tratamiento, y con eso cuanta alcalinidad se va a consumir.
+
+   Dos estimadores sobre pares de mediciones consecutivas de MED:
+     A) LIMPIO — intervalos SIN ninguna salida de bisulfato en MOVS entre
+        las dos fechas. Medicion directa, cero supuestos. Preferido.
+     B) BALANCE — usa TODOS los intervalos y devuelve el efecto del acido:
+        subida_natural = (pH2 - pH1) + dpH_del_bisulfato_aplicado
+        El dpH se obtiene invirtiendo hhKgBisulfato() — el mismo nucleo
+        H-H ya validado, no una formula nueva. Supone que los kg de MOVS
+        se aplicaron integros a ese vaso.
+
+   La tasa se agrupa por CLASE DE DIA (valle/rampa/pico) reusando la
+   clasificacion de carga del modulo Calendario: el pH no sube igual un
+   martes que un domingo. Solo se usan intervalos de 1 dia para no
+   mezclar clases dentro de un mismo par.
+
+   Se devuelve el PERCENTIL 80 de cada grupo, no la media: sesga hacia
+   suponer mas subida -> mas bisulfato -> mas perdida de AT -> anticipar
+   antes. Conservador con dato, no por decreto.
+
+   LIMITACION CONOCIDA: la subida real depende de la alcalinidad (menos
+   TA, menos buffer, sube mas rapido). Una tasa fija por clase de dia es
+   una linealizacion que se degrada justo cuando la TA cae. El p80 cubre
+   parte de ese margen; con mas historial se podria ajustar contra TA.
+   ===================================================================== */
+const HH_MIN_INTERVALOS=6;
+function hhPercentil(arr,p){
+  if(!arr.length) return null;
+  const a=arr.slice().sort((x,y)=>x-y);
+  const i=(a.length-1)*p, lo=Math.floor(i), hi=Math.ceil(i);
+  return lo===hi? a[lo] : a[lo]+(a[hi]-a[lo])*(i-lo);
+}
+/* dpH que produjeron kg de bisulfato sobre un vaso con TA y T dadas.
+   Inversion de hhKgBisulfato: se busca el objetivo que consume esos kg. */
+function hhDeltaPhDeBisulfato(kg,ph,ta,T,V){
+  if(!(kg>0)||ta==null||ta<=0||V<=0||ph==null) return 0;
+  let lo=Math.max(5.5,ph-3), hi=ph;
+  /* 24 biseccciones sobre un rango de 3 unidades → precision 1,8e-7, de sobra
+     para una tasa en pH/dia. Con 40 el costo se triplicaba sin ganancia util. */
+  for(let i=0;i<24;i++){
+    const mid=(lo+hi)/2;
+    /* kg es decreciente en el objetivo: si con 'mid' harian falta mas kg de
+       los aplicados, el objetivo real esta por encima de mid. */
+    if(hhKgBisulfato(ph,ta,T,V,mid).kg>kg) lo=mid; else hi=mid;
+  }
+  return Math.max(0, ph-(lo+hi)/2);
+}
+/* Memoizacion: la tasa se calcula sobre TODO el historial, no sobre el filtro,
+   asi que no cambia al mover fechas o sedes — solo al recargar datos. Sin
+   cache costaba ~430 ms por render con 36 vasos, bloqueante en movil. La clave
+   incluye el tamano de MED/MOVS para invalidarse sola tras cada sincronizacion,
+   sin tener que engancharse a connectLinks() ni a las funciones protegidas. */
+let __hhTasaCache=new Map();
+function hhTasaSubidaPh(pool, clasifFn){
+  const __k=poolKey(pool.sede,pool.piscina)+"|"+MED.length+"|"+MOVS.length;
+  if(__hhTasaCache.has(__k)) return __hhTasaCache.get(__k);
+  const V=pool.vol;
+  const meds=MED.filter(m=>m.pool===pool && m.fecha && m.ph!=null).sort((a,b)=>a.fecha-b.fecha);
+  const bis=MOVS.filter(m=>m.pool===pool && m.tipo==="SALIDA" && m.prod==="bisulfato" && m.cant>0 && m.fecha);
+  const grupos={valle:[],rampa:[],pico:[]}, todos=[];
+  let nLimpio=0, nBalance=0;
+  for(let i=1;i<meds.length;i++){
+    const a=meds[i-1], b=meds[i];
+    const dias=Math.round((b.fecha-a.fecha)/86400000);
+    if(dias!==1) continue;                       // solo pares de 1 dia
+    const kg=bis.filter(m=>m.fecha>a.fecha && m.fecha<=b.fecha).reduce((s,m)=>s+m.cant,0);
+    const ta=(a.alc!=null?a.alc:b.alc), T=(a.temp!=null?a.temp:(b.temp!=null?b.temp:28));
+    let tasa;
+    if(kg<=0){ tasa=b.ph-a.ph; nLimpio++; }
+    else {
+      if(ta==null||ta<=0) continue;              // sin TA no se puede devolver el efecto
+      /* El acido no actuo sobre a.ph sino sobre el pH YA SUBIDO del dia
+         siguiente, que es justamente la incognita. Punto fijo:
+             r = (pH2 - pH1) + dpH(kg, pH1 + r)
+         Converge en pocas vueltas porque dpH depende debilmente del pH de
+         partida. Sin esto el estimador subestima ~25% de forma sistematica,
+         que es exactamente el sesgo que no queremos (diferir de mas). */
+      const base=b.ph-a.ph; let r=Math.max(0,base);
+      for(let k=0;k<8;k++){
+        const rn=base+hhDeltaPhDeBisulfato(kg,a.ph+r,ta,T,V);
+        if(Math.abs(rn-r)<1e-6){ r=rn; break; }
+        r=rn;
+      }
+      tasa=r; nBalance++;
+    }
+    if(!isFinite(tasa)) continue;
+    tasa=Math.max(0,tasa);                       // una bajada sin acido es ruido de medicion
+    const cls=(typeof clasifFn==="function"? clasifFn(b.fecha.getDay()) : null) || "rampa";
+    if(grupos[cls]) grupos[cls].push(tasa);
+    todos.push(tasa);
+  }
+  const n=todos.length;
+  const global=hhPercentil(todos,0.80);
+  const out={n, nLimpio, nBalance, suficiente:n>=HH_MIN_INTERVALOS,
+    metodo:(nBalance===0?"limpio":(nLimpio===0?"balance":"mixto")),
+    p80:global, mediana:hhPercentil(todos,0.50), porClase:{}};
+  ["valle","rampa","pico"].forEach(c=>{
+    const g=grupos[c];
+    out.porClase[c]={n:g.length, p80:(g.length>=3? hhPercentil(g,0.80) : global)};
+  });
+  if(__hhTasaCache.size>200) __hhTasaCache.clear();
+  __hhTasaCache.set(__k,out);
+  return out;
+}
+
+/* =====================================================================
+   hhVentanaBicarbonato(pool, M, f) — ¿hoy o el dia de bloque?
+   ─────────────────────────────────────────────────────────────────────
+   El bicarbonato NO debe dosificarse a diario. Motivos, por peso:
+     1. NaHSO4 + NaHCO3 -> Na2SO4 + H2O + CO2. El acido DESTRUYE la
+        alcalinidad recien comprada. Dos productos pagados para quedar
+        igual, y la TA no cae donde el modelo predijo.
+     2. La dosis se calcula sobre una TA PROYECTADA (taPost = ta - dTA).
+        La TA se mide semanalmente por costo, asi que dosificar a diario
+        apila proyeccion sobre proyeccion sin anclaje real. El protocolo
+        en bloque ya resuelve esto: mide AT con fotometro ENTRE el
+        bisulfato y el bicarbonato.
+     3. Incrustacion en el punto de aplicacion: zona local de pH y
+        carbonato altos precipita CaCO3 con dureza de 400-520 ppm.
+   La homogeneizacion (60-90 min) es una restriccion del mismo dia, no
+   una razon para espaciar dias.
+
+   Por tanto: el bicarbonato va al dia de bloque que predice el
+   calendario. Se difiere SOLO si hasta esa fecha se mantiene la norma:
+   alcalinidad >= rango().alc[0] y ISL dentro de rango().isl. Si se
+   rompe antes, se marca ANTICIPAR con el dia exacto de ruptura.
+
+   Proyeccion, dia por dia, reusando lo ya calculado:
+     - Consumo de TA por bisulfato: se estima el pH del dia con la tasa
+       p80 por clase de dia (hhTasaSubidaPh) y, si supera la tolerancia,
+       se descuenta el dTA de la dosis que haria falta.
+     - Consumo de TA por retrolavados PLANEADOS en RETRO_EV:
+       dTA = (TA - at_rep) x (m3 / V), el mismo modelo que ya usa PIMS.
+   ===================================================================== */
+function hhVentanaBicarbonato(pool, M, f){
+  const R=rango(pool.tipo), V=pool.vol;
+  if(!M || M.sinDato || !(M.kgBic>0.05))
+    return {estado:"opcional", motivo:"La dosis es menor a 0,05 kg: no hay nada que programar."};
+  let CTX=null; try{ CTX=calTratamientoCtx(f); }catch(e){ CTX=null; }
+  if(!CTX) return {estado:"hoy", motivo:"Sin contexto de calendario disponible."};
+  const tasa=hhTasaSubidaPh(pool, CTX.clasifConsumo);
+  const hoy=new Date(); hoy.setHours(0,0,0,0);
+  const dest=new Date(CTX.proxTrat); dest.setHours(0,0,0,0);
+  const dias=Math.max(0,Math.round((dest-hoy)/86400000));
+  const temp=(M.tempRef!=null)?M.tempRef:28;
+  const dur=M.durRef;
+  const pk=poolKey(pool.sede,pool.piscina);
+  const planeados=(RETRO_EV[pk]||[]).filter(x=>x.estado==="planeado"&&x.fecha&&!x.sospechoso);
+
+  /* Punto de partida: TA y pH DESPUES de la accion de hoy sobre el pH,
+     sin aplicar bicarbonato. Es el escenario "no corrijo la alcalinidad". */
+  let ta=M.taPost, ph=M.phPost;
+  const traza=[]; let ruptura=null;
+  for(let d=1; d<=dias; d++){
+    const fd=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()+d);
+    const cls=(CTX.clasifConsumo(fd.getDay()))||"rampa";
+    const sub=(tasa.suficiente? tasa.porClase[cls].p80 : null);
+    /* Sin historial suficiente se cae al supuesto conservador anterior:
+       la dTA del bisulfato de hoy se repite cada dia. */
+    if(sub!=null){
+      ph=ph+sub;
+      if(ph>P.ph_tolerancia){
+        const obj=hhPhObjetivo(dur,ta,temp).ph;
+        const dz=hhKgBisulfato(ph,ta,temp,V,obj);
+        if(dz.dTA>0){ ta-=dz.dTA; ph=obj; }
+      }
+    } else if(M.bis&&M.bis.aplica){ ta-=M.bis.dTA; }
+    // retrolavados planeados de ese dia
+    planeados.filter(x=>sameDay(x.fecha,fd)&&!x.sospechoso).forEach(x=>{
+      ta-=Math.max(0,(ta-P.at_rep)*Math.min(1,x.m3/V));
+    });
+    const isl=calcISL(ph,dur,ta,temp);
+    const fueraAlc = ta<R.alc[0];
+    const fueraIsl = isl!=null && (isl<R.isl[0] || isl>R.isl[1]);
+    traza.push({d,fecha:fd,cls,ph,ta,isl,fueraAlc,fueraIsl});
+    if((fueraAlc||fueraIsl) && !ruptura) ruptura={dia:d,fecha:fd,ta,isl,alc:fueraAlc,isl_f:fueraIsl};
+  }
+  const base={dias,dest,tasa,traza,ruptura,cls_dest:CTX.clasifConsumo(dest.getDay()),
+              confianza:CTX.confianza,planeados:planeados.length,taFin:ta,islFin:calcISL(ph,dur,ta,temp)};
+  if(dias===0) return Object.assign(base,{estado:"hoy",motivo:"Hoy es el día de tratamiento en bloque."});
+  if(ruptura)  return Object.assign(base,{estado:"anticipar"});
+  return Object.assign(base,{estado:"programado"});
+}
+function sameDay(a,b){ return a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
 
 /* Objetivo = banda ideal real de rango() = [-0.3, 0.3] (no un punto fijo).
    Ajuste mínimo: si el ISL medido ya está dentro de la banda, no se propone
@@ -6323,10 +6606,10 @@ function igResolverBalanceISL(dur, ctFijo, phActual, alcActual){
   const caMid = igCA(alcMid);
   let phNecesario = islObjetivo + 12.1 - ctFijo - cdFijo - caMid;
 
-  if(phNecesario >= R.ph[0] && phNecesario <= R.ph[1]){
+  if(phNecesario >= P.ph_banda[0] && phNecesario <= P.ph_banda[1]){
     return {ph:phNecesario, alc:alcMid, dur, metodo:'ph_ajustado', islLogrado:islObjetivo, factible:true};
   }
-  const phClamp = Math.max(R.ph[0], Math.min(R.ph[1], phNecesario));
+  const phClamp = Math.max(P.ph_banda[0], Math.min(P.ph_banda[1], phNecesario));
   const caNecesario = islObjetivo + 12.1 - ctFijo - cdFijo - phClamp;
   let alcNecesario = Math.exp((caNecesario-0.0044)/0.4349);
   const alcLow = Math.max(alcBand[0], R.alc[0]);
@@ -6340,7 +6623,7 @@ function igResolverBalanceISL(dur, ctFijo, phActual, alcActual){
 
 function igDiagnosticoISL(ph,dur,alc,temp,cd,ca,ct){
   const R = rango();
-  const phMid = (R.ph[0]+R.ph[1])/2;
+  const phMid = hhPhObjetivo(dur, alc, temp).ph;
   const durIdeal = R.dur_ideal;
   const alcBand = alcObjetivo(dur);
   const alcMid = (alcBand[0]+alcBand[1])/2;
@@ -6350,7 +6633,7 @@ function igDiagnosticoISL(ph,dur,alc,temp,cd,ca,ct){
   const deltaCA = ca - igCA(alcMid);
 
   const accionables = [
-    {nombre:'pH', delta:deltaPh, desc:`Actual ${ph.toFixed(2)} vs. punto medio ideal ${phMid.toFixed(2)}`, tag:'quimica', tagText:'Corrección química directa'},
+    {nombre:'pH', delta:deltaPh, desc:`Actual ${ph.toFixed(2)} vs. objetivo de equilibrio ${phMid.toFixed(2)} (banda ${P.ph_banda[0]}–${P.ph_banda[1]})`, tag:'quimica', tagText:'Corrección química directa'},
     {nombre:'Dureza cálcica', delta:deltaCD, desc:`Actual ${dur.toFixed(1)} ppm vs. objetivo ${durIdeal} ppm`, tag:'estructural', tagText:'Depende de dosis diaria de hipoclorito'},
     {nombre:'Alcalinidad', delta:deltaCA, desc:`Actual ${alc.toFixed(1)} ppm vs. objetivo ${alcMid.toFixed(0)} ppm (banda ${alcBand[0]}–${alcBand[1]} según dureza)`, tag:'quimica', tagText:'Corrección química directa'}
   ].sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
@@ -7070,6 +7353,12 @@ function consumoRango(f){
 /* ===================== RENDER ===================== */
 function setStatus(msg,kind){const s=document.getElementById("status");s.className="status "+kind;s.innerHTML=msg;}
 function v(x,d=1){return x==null?"—":(Math.round(x*Math.pow(10,d))/Math.pow(10,d)).toLocaleString("es-CO");}
+/* Precision fija: v() usa toLocaleString y suprime los ceros finales, asi que
+   una tasa de 0,050 pH/dia sale como "0,05" y una de 0 sale como "0". Para
+   tasas y coeficientes eso pierde informacion — el numero de decimales ES el
+   dato. vfx() fuerza exactamente d decimales. No reemplaza a v(): se usa solo
+   donde la exactitud del decimal importa. */
+function vfx(x,d=3){return x==null?"—":Number(x).toLocaleString("es-CO",{minimumFractionDigits:d,maximumFractionDigits:d});}
 /* Redondeo del IRAPI a incrementos discretos de 5% (valores referidos por norma).
    El IRAPI individual ya es múltiplo de 5 (pesos 5/10/15/20); esta función se usa
    para los PROMEDIOS por sede / global, que de otro modo no caerían en pasos de 5%. */
@@ -9536,8 +9825,8 @@ function bloqueProcesoHTML(){
     ["Retrolavado","Se limpia el filtro y se elimina la carga orgánica retenida."],
     ["Cloración de seguridad","Inmediatamente después del retrolavado se toma muestra de cloro libre y pH. Subir el cloro libre a <b>4 ppm</b> para crear un colchón sanitario estable en la piscina y recircular durante <b>1 h</b>."],
     ["Apagado técnico de dosificación","<b>APAGAR</b> por completo la dosificación de hipoclorito de sodio/calcio. La recirculación, filtración y calentadores permanecen encendidos al 100%."],
-    ["Corrección controlada del pH","Aplicar la dosis de bisulfato calculada con la <b>Ecuación Maestra</b>: g de NaHSO₄ = [(3.845 × Volumen (m³) × ΔpH) / 0.1] × (AT Actual (ppm) / 100), fijando el <b>pH objetivo estrictamente en 7.0</b>. Esperar 60–90 minutos para que el agua mezcle y homogenice."],
-    ["Lectura real de carbonatos (AT) — fotómetro","Con el pH estabilizado en 7.0 y la dosificación de hipoclorito apagada, medir con el fotómetro: el valor obtenido es en gran parte la AT carbonatada."],
+    ["Corrección controlada del pH","Aplicar la dosis de bisulfato calculada con la <b>Ecuación Maestra</b>: g de NaHSO₄ = [(3.845 × Volumen (m³) × ΔpH) / 0.1] × (AT Actual (ppm) / 100), fijando el <b>pH objetivo que PIMS calcula para ese vaso</b> (banda 7,25–7,30, visible en Balance Químico → Plan del día). Esperar 60–90 minutos para que el agua mezcle y homogenice."],
+    ["Lectura real de carbonatos (AT) — fotómetro","Con el pH estabilizado en su objetivo y la dosificación de hipoclorito apagada, medir con el fotómetro: el valor obtenido es en gran parte la AT carbonatada."],
     ["Dosificación de bicarbonato en bloque","Calcular y pesar los kg de bicarbonato necesarios para subir exclusivamente la AT al rango según la dureza:"+durMini],
     ["Dosificación de Clean Blue","Inmediatamente después del bicarbonato, calcular la dosis exacta de Clean Blue (si la turbidez es media–alta) con la ecuación del Clean Blue. <b>Procedimiento:</b> 1) Esperar 30–40 min con recirculación activa para que el bicarbonato se disuelva y homogenice. 2) Medir la dosis en probeta graduada. 3) Diluir en balde limpio en proporción 1:10 (1 parte de producto + 10 de agua). 4) Adicionar la solución de forma homogénea sobre los puntos de retorno o directamente en el tanque de equilibrio."],
     ["Liberación del sistema","Recircular el bicarbonato y el Clean Blue por <b>2 horas</b> con los sistemas de cloro apagados. Encender la dosificación de hipoclorito. La nueva barrera de AT (80 ppm) absorberá eficientemente el impacto alcalino del cloro los días siguientes."]
@@ -9547,6 +9836,122 @@ function bloqueProcesoHTML(){
   h+=`</div>`;
   return h;
 }
+
+/* =====================================================================
+   calTratamientoCtx(f) — contexto de tratamiento en bloque
+   ─────────────────────────────────────────────────────────────────────
+   Extraida tal cual del interior de renderCal() para que Plan del dia
+   pueda consumirla sin duplicar la logica. renderCal() ahora la llama y
+   desestructura; el calculo es byte a byte el mismo que antes.
+
+   Devuelve:
+     avgWd[]        consumo medio de cloro (kg/dia) por dia de semana
+     clasifConsumo  (idxDia) -> 'valle'|'rampa'|'pico'|null
+     mejorIdx       dia de semana de menor consumo = dia de bloque
+     proxTrat       proxima fecha concreta de ese dia, corrida si es festivo
+     confianza      % de claridad de la separacion valle<->pico
+   ===================================================================== */
+function calTratamientoCtx(f){
+  const ORDEN_LV=[1,2,3,4,5,6,0];
+  const clMovs=MOVS.filter(m=>m.tipo==="SALIDA"&&m.cant!=null&&(m.prod==="pulsar"||m.prod==="hipoclorito_sodio")&&m.fecha&&inRange(m.fecha,f)&&movPassFilter(m,f));
+  const sumWd=[0,0,0,0,0,0,0];
+  clMovs.forEach(m=>{ sumWd[m.fecha.getDay()]+=m.cant; });
+  const cntWd=[0,0,0,0,0,0,0];
+  if(f.desde&&f.hasta){ let d=new Date(f.desde); const h=new Date(f.hasta); while(d<=h){ cntWd[d.getDay()]++; d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1);} }
+  const avgWd=sumWd.map((s,i)=> cntWd[i]>0? s/cntWd[i] : null);
+  const hayConsumo = clMovs.length>0 && avgWd.some(x=>x!=null && x>0);
+  const valsCon = ORDEN_LV.map(i=>avgWd[i]).filter(x=>x!=null && x>0);
+  let minC=null,maxC=null; if(valsCon.length){ minC=Math.min(...valsCon); maxC=Math.max(...valsCon); }
+  function clasifConsumo(i){
+    const a=avgWd[i];
+    if(a==null) return null;
+    if(maxC==null || maxC===minC) return "valle";
+    const r=(a-minC)/(maxC-minC);
+    return r<=0.34? "valle" : (r>=0.67? "pico":"rampa");
+  }
+  let mejorIdx=1;
+  if(hayConsumo){ let best=Infinity; ORDEN_LV.forEach(i=>{ if(avgWd[i]!=null && avgWd[i]>0 && avgWd[i]<best){ best=avgWd[i]; mejorIdx=i; } }); }
+  const grupoCon={valle:0,rampa:0,pico:0};
+  ORDEN_LV.forEach(i=>{ const c=clasifConsumo(i); if(c) grupoCon[c]+=sumWd[i]; });
+  const totCon=grupoCon.valle+grupoCon.rampa+grupoCon.pico;
+  let grpDom="—"; if(totCon>0){ const mx=Math.max(grupoCon.valle,grupoCon.rampa,grupoCon.pico); grpDom= mx===grupoCon.pico?"PICO":(mx===grupoCon.valle?"VALLE":"RAMPA"); }
+  const ambitoCal = f.pisc? `piscina ${f.pisc} · ${f.sede}` : (f.sede? `sede ${f.sede}` : "todas las sedes");
+  const hoyCal=new Date();
+  let proxTrat=proximoDiaSemana(hoyCal, mejorIdx);
+  let proxFest=esFestivoCO(proxTrat);
+  if(proxFest){ const t=new Date(proxTrat); t.setDate(proxTrat.getDate()+1); proxTrat=t; }
+  let confianza;
+  if(hayConsumo && maxC!=null && maxC>minC){ const clar=(maxC-avgWd[mejorIdx])/(maxC-minC); confianza=Math.round(Math.max(62,Math.min(97,62+clar*35))); }
+  else { confianza=70; }
+  const confCol = confianza>=85?'#2E9E5B':(confianza>=72?'#E67E22':'#9aa0a6');
+  const confDash=confianza/100*2*Math.PI*30;
+  return {ORDEN_LV,clMovs,sumWd,cntWd,avgWd,hayConsumo,minC,maxC,clasifConsumo,
+          mejorIdx,grupoCon,totCon,grpDom,ambitoCal,hoyCal,proxTrat,proxFest,
+          confianza,confCol,confDash};
+}
+
+/* Captura de retrolavados desde el modulo Calendario. Registra los que ya se
+   hicieron (afinan la AT historica) y los PLANEADOS hasta el dia de bloque
+   (alimentan la proyeccion de hhVentanaBicarbonato). Minutos x caudal, o
+   volumen directo si se midio. */
+function calRetroHTML(f, CTX){
+  const pools=POOLS.filter(p=>poolPassFilter(p,f));
+  const iso=d=>{ const z=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); };
+  const hoy=new Date();
+  const opts=pools.map(p=>{ const pk=poolKey(p.sede,p.piscina);
+    return `<option value="${pk}">${p.piscina} · ${p.sede}${CAUDAL[pk]>0?"":" (sin caudal)"}</option>`; }).join("");
+  let h=`<div class="panel" style="margin-top:16px">${panelHead("Registro de retrolavados","minutos × caudal, o volumen medido · alimenta la alcalinidad proyectada",SHOW_RETRO,"toggleRetro")}`;
+  if(!SHOW_RETRO){ return h+hiddenNote("el registro de retrolavados")+`</div>`; }
+  h+=`<div class="row" style="align-items:flex-end;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="min-width:210px"><label>Vaso</label><select id="rtPool">${opts}</select></div>
+      <div class="fld" style="min-width:150px"><label>Fecha</label><input type="date" id="rtFecha" value="${iso(hoy)}"></div>
+      <div class="fld" style="min-width:110px"><label>Minutos</label><input type="text" id="rtMin" placeholder="5"></div>
+      <div class="fld" style="min-width:120px"><label>o Volumen (m³)</label><input type="text" id="rtVol" placeholder="7,5"></div>
+      <div class="fld" style="min-width:150px"><label>Estado</label><select id="rtEstado">
+        <option value="realizado">Realizado</option><option value="planeado">Planeado</option></select></div>
+      <div class="fld"><button class="acc" onclick="calRetroGuardar()">Registrar</button></div>
+    </div>
+    <div id="rtMsg" class="note" style="display:none"></div>
+    <div class="note">El <b>volumen medido manda</b> sobre los minutos. Si solo pones minutos, el vaso necesita caudal definido (hoja RETROLAVADO o Parámetros). Los <b>planeados</b> no alteran la alcalinidad histórica: solo la proyección hasta el día de tratamiento${CTX&&CTX.proxTrat?` (<b>${fmtFecha(CTX.proxTrat)}</b>)`:""}.</div>
+    ${(()=>{ const L=retroLocalLoad(); const pend=L.ev.filter(x=>!x.enviado).length;
+      if(!pend) return '';
+      return `<div class="row" style="margin-top:10px;align-items:center;gap:10px">
+        <button class="acc" id="rtSyncBtn" onclick="retroEnviarAlSheet()">📤 Enviar a la hoja</button>
+        <span class="hint">${pend} registro${pend===1?'':'s'} de este dispositivo aún no está${pend===1?'':'n'} en la hoja RETROLAVADO.</span>
+      </div>
+      <div id="rtSyncMsg" class="note" style="display:none"></div>`; })()}`;
+  // tabla de registros del rango
+  const filas=[];
+  pools.forEach(p=>{ const pk=poolKey(p.sede,p.piscina);
+    (RETRO_EV[pk]||[]).forEach(e=>{ if(e.fecha&&(inRange(e.fecha,f)||e.estado==="planeado")) filas.push({p,pk,e}); }); });
+  filas.sort((a,b)=>b.e.fecha-a.e.fecha);
+  if(!filas.length){ h+=`<div class="note" style="margin-top:8px">Sin retrolavados registrados en el rango.</div>`; }
+  else {
+    h+=`<div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Fecha</th><th>Vaso</th><th>Minutos</th><th>Volumen</th><th>% del vaso</th><th>Estado</th><th>Origen</th><th></th></tr></thead><tbody>`;
+    filas.forEach(({p,e})=>{
+      h+=`<tr${e.sospechoso?' style="opacity:.6"':''}>
+        <td>${fmtFecha(e.fecha)}</td><td><b>${p.piscina}</b><br><span class="hint">${p.sede}</span></td>
+        <td>${e.min!=null?v(e.min,0):'<span class="hint">—</span>'}</td>
+        <td><b>${vfx(e.m3,2)}</b> m³<br><span class="hint">${e.origen}</span></td>
+        <td>${vfx(e.frac*100,1)}%${e.sospechoso?' 🚩':''}</td>
+        <td><span class="tag ${e.estado==="planeado"?'y':'v'}">${e.estado}</span></td>
+        <td>${e.fuente==="local"?'<span class="tag y">este equipo</span>':'<span class="tag v">hoja</span>'}</td>
+        <td>${e.fuente==="local"?`<button class="gh sm" onclick="retroDelEvento('${e.id}')">Quitar</button>`:''}</td></tr>`;
+    });
+    h+=`</tbody></table></div>`;
+    if(filas.some(x=>x.e.sospechoso)) h+=`<div class="alertbox" style="margin-top:8px"><b>🚩 Hay registros excluidos del modelo.</b> El volumen supera el 30% del vaso o el caudal cae fuera de 5–500 m³/h. Casi siempre es la unidad del caudal: <b>0,025 m³/s = 90 m³/h = 1,5 m³/min</b> son el mismo caudal. Verifica que el valor corresponda a la unidad del encabezado.</div>`;
+  }
+  return h+`</div>`;
+}
+function calRetroGuardar(){
+  const g=id=>document.getElementById(id);
+  const r=retroAddEvento(g("rtPool").value, g("rtFecha").value, g("rtMin").value, g("rtVol").value, g("rtEstado").value);
+  const m=document.getElementById("rtMsg");
+  if(m){ m.style.display="block"; m.innerHTML = r.ok? "✓ Retrolavado registrado en este dispositivo." : "⚠ "+r.msg; }
+  if(r.ok){ g("rtMin").value=""; g("rtVol").value=""; }
+}
+let SHOW_RETRO=true;
+function toggleRetro(){ SHOW_RETRO=!SHOW_RETRO; renderCal(); }
 
 function renderCal(){
   const f=getFilt();
@@ -9563,8 +9968,8 @@ function renderCal(){
   html+=`<div style="margin-top:14px"><button class="${SHOW_LAB?'acc':'gh'} sm" onclick="toggleLab()">${SHOW_LAB?'Ocultar Laboratorio':'Laboratorio'}</button></div>`;
   if(SHOW_LAB){
     const lab=[
-      ["05:00 AM","Medición de apertura con fotómetro. Parámetros objetivo: <b>pH 7.20</b> · <b>Cloro libre 2.8 ppm</b> · AT calculada a partir de la aplicación de bisulfato la noche anterior."],
-      ["2 h antes de la toma","Si el pH = 7.30 (límite superior), aplicar dosis quirúrgica de bisulfato para bajar 0.1 unidades (buscar 7.20). Con AT controlada en 80 ppm, el agua responderá en ~60 minutos. Si el cloro libre &gt; 3,8 ppm, detener la dosificación automática o manual."],
+      ["05:00 AM","Medición de apertura con fotómetro. Parámetros objetivo: <b>pH según el objetivo del vaso (banda 7,25–7,30)</b> · <b>Cloro libre 2.8 ppm</b> · AT calculada a partir de la aplicación de bisulfato la noche anterior."],
+      ["2 h antes de la toma","Corregir solo si el pH supera <b>7,35</b>; entre el objetivo y 7,35 es operativamente aceptable y no se dosifica. Si supera 7,35, aplicar la dosis del Plan del día (nunca por debajo de 7,25 sin validación de supervisión). Con AT controlada en 80 ppm, el agua responderá en ~60 minutos. Si el cloro libre &gt; 3,8 ppm, detener la dosificación automática o manual."],
       ["30 min antes de la toma","Congelamiento de parámetros: <b>APAGAR</b> temporalmente los equipos de dosificación de cloro líquido por 15 minutos. Esto homogeneiza el residual libre en el vaso, evitando lecturas erróneas por corrientes concentradas en los puntos de inyección."],
       ["Durante la toma","Tomar contramuestra de alcalinidad, dureza, cloro libre, cloro total, pH y temperatura."]
     ];
@@ -9577,41 +9982,9 @@ function renderCal(){
   // ============ PREDICCIÓN DE DÍA DE TRATAMIENTO EN BLOQUE (data-driven por consumo) ============
   const NOMBRE_DIA=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
   const ORDEN_LV=[1,2,3,4,5,6,0]; // Lun..Dom
-  const clMovs=MOVS.filter(m=>m.tipo==="SALIDA"&&m.cant!=null&&(m.prod==="pulsar"||m.prod==="hipoclorito_sodio")&&m.fecha&&inRange(m.fecha,f)&&movPassFilter(m,f));
-  const sumWd=[0,0,0,0,0,0,0];
-  clMovs.forEach(m=>{ sumWd[m.fecha.getDay()]+=m.cant; });
-  const cntWd=[0,0,0,0,0,0,0];
-  if(f.desde&&f.hasta){ let d=new Date(f.desde); const h=new Date(f.hasta); while(d<=h){ cntWd[d.getDay()]++; d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1);} }
-  const avgWd=sumWd.map((s,i)=> cntWd[i]>0? s/cntWd[i] : null);   // consumo promedio (kg/día) por día de semana
-  const hayConsumo = clMovs.length>0 && avgWd.some(x=>x!=null && x>0);
-  const valsCon = ORDEN_LV.map(i=>avgWd[i]).filter(x=>x!=null && x>0);
-  let minC=null,maxC=null; if(valsCon.length){ minC=Math.min(...valsCon); maxC=Math.max(...valsCon); }
-  function clasifConsumo(i){
-    const a=avgWd[i];
-    if(a==null) return null;
-    if(maxC==null || maxC===minC) return "valle";
-    const r=(a-minC)/(maxC-minC);
-    return r<=0.34? "valle" : (r>=0.67? "pico":"rampa");   // bajo / tendencia a subir / alto
-  }
-  let mejorIdx=1; // lunes por defecto
-  if(hayConsumo){ let best=Infinity; ORDEN_LV.forEach(i=>{ if(avgWd[i]!=null && avgWd[i]>0 && avgWd[i]<best){ best=avgWd[i]; mejorIdx=i; } }); }
-  const grupoCon={valle:0,rampa:0,pico:0};
-  ORDEN_LV.forEach(i=>{ const c=clasifConsumo(i); if(c) grupoCon[c]+=sumWd[i]; });
-  const totCon=grupoCon.valle+grupoCon.rampa+grupoCon.pico;
-  let grpDom="—"; if(totCon>0){ const mx=Math.max(grupoCon.valle,grupoCon.rampa,grupoCon.pico); grpDom= mx===grupoCon.pico?"PICO":(mx===grupoCon.valle?"VALLE":"RAMPA"); }
-  const ambitoCal = f.pisc? `piscina ${f.pisc} · ${f.sede}` : (f.sede? `sede ${f.sede}` : "todas las sedes");
-
-  // próximo día concreto del mejor día de la semana (data-driven); si es festivo en Colombia, se corre 1 día
-  const hoyCal=new Date();
-  let proxTrat=proximoDiaSemana(hoyCal, mejorIdx);
-  let proxFest=esFestivoCO(proxTrat);
-  if(proxFest){ const t=new Date(proxTrat); t.setDate(proxTrat.getDate()+1); proxTrat=t; }
-  // confianza: claridad de la separación valle↔pico del día recomendado
-  let confianza;
-  if(hayConsumo && maxC!=null && maxC>minC){ const clar=(maxC-avgWd[mejorIdx])/(maxC-minC); confianza=Math.round(Math.max(62,Math.min(97,62+clar*35))); }
-  else { confianza=70; }
-  const confCol = confianza>=85?'#2E9E5B':(confianza>=72?'#E67E22':'#9aa0a6');
-  const confDash=confianza/100*2*Math.PI*30;
+  const CTX=calTratamientoCtx(f);
+  const {clMovs,sumWd,avgWd,hayConsumo,minC,maxC,clasifConsumo,mejorIdx,
+         grupoCon,grpDom,ambitoCal,proxTrat,proxFest,confianza,confCol,confDash}=CTX;
 
   html+=`<div class="panel" style="margin-top:16px">${panelHead("Predicción de día de tratamiento en bloque",`consumo de cloro por día de la semana · ${ambitoCal}`,SHOW_PRED,"togglePred")}`;
   if(SHOW_PRED){
@@ -9646,6 +10019,9 @@ function renderCal(){
     html+=`<div class="note">El laboratorio toma muestras de control en los <b>primeros 10 días de cada mes</b>; el tratamiento en bloque se programa en un día <b>valle</b> (bajo consumo) previo a esa visita. El periodo concentra su consumo en días <b>${grpDom}</b>. La <b>confianza</b> refleja qué tan marcada es la separación valle↔pico del día recomendado y el ajuste por festivos.</div>`;
   }
   } else { html+=hiddenNote("la predicción del mejor día de tratamiento"); }
+
+  // ============ CAPTURA DE RETROLAVADOS ============
+  html+=calRetroHTML(f, CTX);
   html+=`</div>`;
 
   // ============ PLAN DE TRATAMIENTO DE CLORACIÓN (cloro recomendado por día según clasificación data-driven) ============
@@ -9866,7 +10242,8 @@ function renderParam(){
   const cont=document.getElementById("param");
   const flds=[
     ["at_rep","AT agua reposición (ppm)"],["dur_rep","Dureza agua reposición (ppm)"],
-    ["ph_obj","pH objetivo"],["cl_ideal_estricta","Cl ideal estricta (ppm)"],["cl_ideal_normal","Cl ideal normal (ppm)"],
+    ["cl_ideal_estricta","Cl ideal estricta (ppm)"],["cl_ideal_normal","Cl ideal normal (ppm)"],
+    ["ph_tolerancia","pH tolerancia — corrige por encima (7,35)"],
     ["k_at_bisulfato","Const. AT por bisulfato (416,5)"],["k_bicarbonato","Const. bicarbonato (1,675)"],
     ["k_ph_bisulfato","Const. pH bisulfato (3,845)"],["pureza","Pureza Hipoclorito Ca (0,68)"],["conc_naoh","Conc. Hipoclorito Na (0,15)"],
     ["conc_bisulfato","Conc. bisulfato (0,10)"],["dur_por_cl","Dureza por ppm cloro (0,8)"],["cleanblue_por_m3","Clean Blue ml/m³ (7)"],["corte_dia","Día de corte pedido"]
@@ -9882,6 +10259,29 @@ function renderParam(){
     const disabled=!canEdit?' disabled':'';
     return `<div class="fld" style="min-width:170px"><label>${f[1]}</label><input type="text" value="${P[f[0]]}"${disabled} onchange="P['${f[0]}']=parseFloat(this.value.replace(',','.'))||P['${f[0]}'];renderAll()"></div>`;
   }).join("")}</div>
+    <h2 style="margin-top:20px">Banda operativa de pH</h2>
+    <div class="row">
+      <div class="fld" style="min-width:170px"><label>pH mínimo de banda</label><input type="text" value="${P.ph_banda[0]}"${isSupervisión?'':' disabled'} onchange="P.ph_banda[0]=parseFloat(this.value.replace(',','.'))||P.ph_banda[0];renderAll()"></div>
+      <div class="fld" style="min-width:170px"><label>pH máximo de banda</label><input type="text" value="${P.ph_banda[1]}"${isSupervisión?'':' disabled'} onchange="P.ph_banda[1]=parseFloat(this.value.replace(',','.'))||P.ph_banda[1];renderAll()"></div>
+    </div>
+    <div class="note"><b>No existe un “pH objetivo” fijo.</b> Dentro de esta banda, cada vaso recibe el pH que deja su <b>ISL más cerca de 0</b> con la dureza y la alcalinidad que tiene hoy (pH = 12,1 − CD − CA − CT, acotado a la banda). Ese es el pH hacia el que se calcula el bisulfato y sobre el que se evalúa si hace falta bicarbonato. El <b>pH de tolerancia</b> es distinto y va por encima de la norma a propósito: entre el objetivo y ${P.ph_tolerancia} el vaso se considera operativamente aceptable y <b>no se corrige</b>, porque bajar de 7,30 a 7,25 es una microdosis sin provecho. La corrección se dispara solo <b>por encima</b> de ${P.ph_tolerancia}; en ${P.ph_tolerancia} exacto, no.</div>
+    <h2 style="margin-top:20px">Caudal de retrolavado por vaso</h2>
+    <div class="note">Se expresa en <b>m³/s</b>, la misma unidad del encabezado de la hoja RETROLAVADO, para que hoja y captura sean intercambiables. Referencia: <b>0,025 m³/s = 90 m³/h</b>, caudal típico de un filtro de vaso semiolímpico. Un valor que resulte fuera de <b>5–500 m³/h</b> se marca como implausible y se excluye del modelo.
+      <br><br><b>Lo que edites aquí se guarda solo en este dispositivo</b> y pisa al de la hoja. Es un puente para corregir en campo: el registro que perdura es la hoja.</div>
+    <div class="note" style="margin-top:8px">Los retrolavados que registres en <b>Calendario → Registro de retrolavados</b> se escriben en este dispositivo primero, y se envían a la hoja RETROLAVADO con el botón <b>"Enviar a la hoja"</b> — requiere anclar el <b>Motor de Escritura de Retrolavados</b> en <b>Conexión de datos → Hojas Ancladas</b>.</div>
+    ${(()=>{ const R=rango(); let h=`<div class="tablewrap"><table><thead><tr><th>Sede</th><th>Vaso</th><th>Vol. (m³)</th><th>Caudal (m³/s)</th><th>equivale a</th><th>Origen</th></tr></thead><tbody>`;
+      POOLS.filter(p=>poolPassFilter(p,getFilt())).forEach(p=>{
+        const pk=poolKey(p.sede,p.piscina), q=CAUDAL[pk];
+        const local=(retroLocalLoad().cau||{})[pk]!=null;
+        const m3h=(q>0)?q*3600:null;
+        const mal=(m3h!=null)&&(m3h<5||m3h>500);
+        h+=`<tr><td>${p.sede}</td><td><b>${p.piscina}</b></td><td>${v(p.vol,1)}</td>
+          <td><input type="text" style="width:110px" value="${q!=null?String(q).replace('.',','):''}" placeholder="0,025"
+             onchange="retroSetCaudal('${pk.replace(/'/g,"\\'")}', this.value)"></td>
+          <td>${m3h!=null?`<b class="${mal?'bad':''}">${vfx(m3h,1)} m³/h</b>${mal?' 🚩 fuera de rango físico':''}`:'<span class="hint">—</span>'}</td>
+          <td>${q==null?'<span class="hint">sin dato</span>':(local?'<span class="tag y">este equipo</span>':'<span class="tag v">hoja</span>')}</td></tr>`;
+      });
+      return h+`</tbody></table></div>`; })()}
     <div class="note"><b>Todos estos valores alimentan los modelos en vivo.</b> Al cambiar cualquiera, se recalculan instantáneamente: las <b>proyecciones</b> (alcalinidad cronológica, dureza, pH/cloro), las <b>dosis recomendadas</b> y la <b>proyección de unidades a corregir</b> de la pestaña Consumo. Por ejemplo: <b>AT reposición</b> (def. 25) entra en la pérdida por retrolavado ΔAT = (AT vaso − AT reposición) × (Vol purga ÷ V); <b>pureza</b> (0,68) y <b>conc. Hipoclorito Na</b> (0,15) en el cloro aportado y las dosis de cloro; <b>conc. bisulfato</b> (0,10) y <b>const. pH bisulfato</b> (3,845) en la dosis de bisulfato y su proyección de unidades. Las constantes químicas no deberían modificarse salvo recalibración del laboratorio.</div>
     <h2 style="margin-top:20px">Precio de productos (COP)</h2>
     <div class="row">${precioFlds.map(pf=>{
@@ -14858,6 +15258,344 @@ function lexInitDropzone() {
 // al cargar la página si el tab ya estuviera activo por defecto.
 window.addEventListener('load', lexInitDropzone);
 
+/* =================================================================
+   HOJA RETRO — retrolavados fechados + caudal de filtro por vaso
+   ─────────────────────────────────────────────────────────────────
+   Columnas esperadas (el orden no importa, se leen por encabezado):
+     SEDE · PISCINA · CAUDAL M3H · FECHA · MINUTOS · VOLUMEN M3 · ESTADO
+   - CAUDAL M3H solo hace falta una vez por vaso; si se repite, gana el
+     ultimo valor no vacio. Las filas de retrolavado pueden dejarlo vacio.
+   - Se acepta MINUTOS o VOLUMEN M3 (o ambos). Si solo hay minutos y el
+     vaso tiene caudal, se convierte: m3 = min/60 x caudal.
+   - ESTADO: REALIZADO (por defecto) o PLANEADO. Los planeados no alteran
+     la AT historica; solo alimentan la proyeccion hasta el dia de
+     tratamiento en hhVentanaBicarbonato().
+   ================================================================= */
+/* Unidad del caudal leida DEL ENCABEZADO, no asumida. Devuelve el factor que
+   convierte el valor de la hoja a m3/min, que es la unidad en que se usa
+   (volumen = minutos x factor). Si el encabezado no declara unidad se asume
+   m3/h, que es como vienen las fichas tecnicas de bomba. */
+const RETRO_UNIDADES=[
+  [/m\s*3?\s*\/\s*s|m³\s*\/\s*s/i, 60,     "m³/s"],
+  [/m\s*3?\s*\/\s*min|m³\s*\/\s*min/i, 1,   "m³/min"],
+  [/m\s*3?\s*\/\s*h|m³\s*\/\s*h/i, 1/60,    "m³/h"],
+  [/l\s*\/\s*s|lps/i, 0.06,                     "L/s"],
+  [/l\s*\/\s*min|lpm/i, 0.001,                  "L/min"]
+];
+/* num() aplica una heuristica de separador de miles: con UNA sola coma y
+   exactamente 3 decimales asume miles, asi que "0,025" -> 25. Para kg en MOVS
+   eso es correcto ("1,500" son 1500 g). Para un caudal en m3/s es un error de
+   factor 1000: 0,025 m3/s se volveria 25 m3/s.
+   numDec() lee la coma SIEMPRE como separador decimal. Se usa solo en la hoja
+   RETROLAVADO, donde ningun campo (caudal 0,001-1 · minutos 1-60 · volumen
+   0,1-50) llega nunca a la magnitud en que el separador de miles importa.
+   num() se deja intacta a proposito: cambiarla alteraria retroactivamente
+   cifras historicas en todo PIMS. */
+function numDec(v){
+  if(v===null||v===undefined) return null;
+  let t=v.toString().trim();
+  if(t==="") return null;
+  t=t.replace(/[^0-9.,\-]/g,"");
+  if(t===""||t==="-") return null;
+  const c=t.lastIndexOf(","), d=t.lastIndexOf(".");
+  /* Con ambos separadores, el ULTIMO es el decimal y el otro es de miles.
+     Con uno solo, se lee siempre como decimal — incluso "1.500", que en
+     locale es-CO seria ambiguo. Aqui no lo es: ningun campo de esta hoja
+     (caudal 0,001-1 m3/s · minutos 1-60 · volumen 0,1-50 m3) tiene valores
+     donde 1500 sea plausible, y los guardianes de plausibilidad respaldan
+     la decision si alguien escribe algo fuera de rango. */
+  if(c!==-1&&d!==-1){ t = c>d ? t.replace(/\./g,"").replace(",",".") : t.replace(/,/g,""); }
+  else if(c!==-1){ t=t.replace(/,/g,"."); }
+  const n=parseFloat(t);
+  return isFinite(n)?n:null;
+}
+function retroUnidadCaudal(headers){
+  const h=(headers||[]).find(x=>/caudal/i.test(x||""))||"";
+  for(const [re,f,nom] of RETRO_UNIDADES) if(re.test(h)) return {factor:f,nombre:nom,declarada:true,header:h};
+  return {factor:1/60,nombre:"m³/h",declarada:false,header:h};
+}
+/* GUARDIAN DE DOS LADOS. La unidad del caudal es el punto mas fragil de esta
+   hoja: el mismo caudal real se escribe 0,025 m3/s, 1,5 m3/min o 90 m3/h, y
+   equivocarse de casilla cambia el resultado por factores de 60 o 3600.
+   - Limite superior por FRACCION DEL VASO: reemplazar mas del 30% no es un
+     retrolavado, es un vaciado. Este error grita solo (450 m3 en un vaso de
+     383) porque el numero es enorme.
+   - Limite inferior por CAUDAL: este es el peligroso. Escribir 0,025 bajo un
+     encabezado m3/h da 2,1 litros en 5 minutos -> dAT practicamente cero ->
+     la proyeccion parece correcta y no lo esta. Ninguna bomba de filtro de
+     piscina comercial retrolava por debajo de 5 m3/h ni por encima de 500,
+     asi que la banda se pone sobre el caudal y no sobre el volumen: es
+     independiente del tamano del vaso y detecta el error de unidad directo. */
+const RETRO_FRAC_MAX=0.30;
+const RETRO_CAUDAL_MIN_M3MIN=5/60;    // 5 m³/h
+const RETRO_CAUDAL_MAX_M3MIN=500/60;  // 500 m³/h
+
+function parseRetrolavados(headers,data){
+  /* H() ya hace coincidencia exacta y luego por inclusion, asi que se le pasan
+     varias variantes de cada encabezado: la hoja la mantiene el operario y no
+     conviene que un "CAUDAL (m3/h)" en vez de "CAUDAL M3H" produzca cero
+     eventos en silencio. Los descartes se cuentan en DIAG.retro para que el
+     panel de diagnostico los muestre en vez de fallar sin ruido. */
+  const dsc={sin_pool:0, sin_volumen:0, sin_fecha:0, sospechoso:0};
+  const ev={}, cau={}, ult={}, sosp=[];
+  const U=retroUnidadCaudal(headers);
+  for(const o of data){
+    const sede=H(o,"SEDE"), pisc=H(o,"PISCINA","VASO","ESTRUCTURA");
+    if(!sede||!pisc) continue;
+    const pool=matchPool(sede,pisc);
+    if(!pool){ dsc.sin_pool++; if(typeof DIAG!=="undefined"&&DIAG.unmapped_pool) DIAG.unmapped_pool.add(normSede(sede)+" / "+pisc); continue; }
+    const pk=poolKey(pool.sede,pool.piscina);
+    const q=numDec(H(o,"CAUDAL M3H","CAUDAL M3/H","CAUDAL"));
+    if(q!=null && q>0) cau[pk]=q;
+    const f=parseFecha(H(o,"FECHA"));
+    if(!f){ if(q==null||q<=0) dsc.sin_fecha++; continue; }   // fila de solo caudal
+    const min=numDec(H(o,"MINUTOS","MIN","TIEMPO"));
+    let m3=numDec(H(o,"VOLUMEN M3","VOLUMEN","VOL M3","VOL"));
+    let origen="volumen";
+    /* El volumen medido manda; los minutos son el respaldo, convertidos con
+       la unidad que declara el encabezado. */
+    if((m3==null||m3<=0) && min!=null && min>0 && cau[pk]>0){ m3=min*cau[pk]*U.factor; origen="minutos"; }
+    if(m3==null||m3<=0){ dsc.sin_volumen++; continue; }
+    const est=(H(o,"ESTADO","TIPO")||"").toString().trim().toUpperCase().startsWith("PLAN")?"planeado":"realizado";
+    const frac=m3/pool.vol;
+    let susp=false, razon=null;
+    if(frac>RETRO_FRAC_MAX){ susp=true; razon="volumen"; }
+    else if(origen==="minutos"){
+      const qmin=cau[pk]*U.factor;   // caudal en m³/min
+      if(qmin<RETRO_CAUDAL_MIN_M3MIN){ susp=true; razon="caudal_bajo"; }
+      else if(qmin>RETRO_CAUDAL_MAX_M3MIN){ susp=true; razon="caudal_alto"; }
+    }
+    if(susp){ dsc.sospechoso++; sosp.push({pool:pool.sede+" / "+pool.piscina, m3, vol:pool.vol,
+      pct:frac*100, min, caudal:cau[pk], unidad:U.nombre, origen, razon,
+      m3h:(cau[pk]!=null?cau[pk]*U.factor*60:null)}); }
+    (ev[pk]=ev[pk]||[]).push({fecha:f,min:min,m3:m3,estado:est,origen,frac,sospechoso:susp});
+  }
+  if(typeof DIAG!=="undefined") DIAG.retro={headers,n:data.length,descartes:dsc,unidad:U,sospechosos:sosp,
+    nEventos:Object.values(ev).reduce((a,x)=>a+x.length,0), nCaudales:Object.keys(cau).length};
+  Object.keys(ev).forEach(pk=>{
+    ev[pk].sort((a,b)=>a.fecha-b.fecha);
+    const reales=ev[pk].filter(x=>x.estado==="realizado");
+    if(reales.length) ult[pk]=reales[reales.length-1].fecha;
+  });
+  RETRO_HOJA_EV=ev; RETRO_HOJA_CAU=Object.assign({},cau);
+  RETRO_FECHA=ult; CAUDAL=Object.assign({},cau);
+  return ev;
+}
+/* Volumen de purga realizado dentro de un rango, por vaso (m³). Sustituye la
+   lectura de RETRO[pk] (un solo numero sin fecha) por la suma de los eventos
+   reales del rango. Si no hay historial, cae al widget legado del Tablero. */
+function retroVolEnRango(pool, f){
+  const pk=poolKey(pool.sede,pool.piscina);
+  const evs=RETRO_EV[pk];
+  if(!evs||!evs.length) return RETRO[pk]!=null?RETRO[pk]:null;
+  const t=evs.filter(x=>x.estado==="realizado" && x.fecha && inRange(x.fecha,f))
+             .reduce((a,x)=>a+x.m3,0);
+  return t>0?t:(RETRO[pk]!=null?RETRO[pk]:null);
+}
+
+/* Puente historial -> RETRO. evalPool() esta protegida y lee RETRO[pk] como
+   un escalar sin fecha; en vez de tocarla, se recalcula ese escalar antes de
+   cada render con la suma de los retrolavados REALIZADOS dentro del filtro
+   activo. Asi evalPool sigue leyendo exactamente lo mismo que siempre, pero
+   el valor deja de ser un numero escrito a mano y pasa a salir del historial.
+   Los vasos sin historial conservan el widget manual del Tablero intacto. */
+function retroSyncDesdeHistorial(){
+  const pks=Object.keys(RETRO_EV||{});
+  if(!pks.length) return;
+  let f=null; try{ f=getFilt(); }catch(e){ return; }
+  pks.forEach(pk=>{
+    const evs=RETRO_EV[pk]||[];
+    /* Los sospechosos NO entran al modelo: un volumen mayor a RETRO_FRAC_MAX
+       del vaso corromperia la AT proyectada (podria dejarla negativa). Quedan
+       registrados en RETRO_EV y reportados en Diagnostico para que se corrijan. */
+    const t=evs.filter(x=>x.estado==="realizado" && x.fecha && !x.sospechoso && inRange(x.fecha,f))
+                .reduce((a,x)=>a+x.m3,0);
+    if(t>0) RETRO[pk]=t; else delete RETRO[pk];
+  });
+}
+
+/* =====================================================================
+   CAPTURA LOCAL — caudales y retrolavados registrados desde la app
+   ─────────────────────────────────────────────────────────────────────
+   La hoja RETROLAVADO es la fuente de verdad. Pero el operario en campo
+   necesita registrar el retrolavado que acaba de hacer, o el que va a
+   hacer, sin abrir Sheets. Esos registros viven en localStorage
+   namespaced por perfil y se FUSIONAN con los de la hoja.
+
+   Limitacion honesta, visible en la propia UI: localStorage es por
+   dispositivo. Lo que registre el operario de una sede en su celular no
+   lo ve Supervision desde otro equipo, y se pierde si cambia de
+   telefono. Es un puente hasta que exista el endpoint addRetrolavado en
+   Apps Script; la hoja sigue siendo el registro que perdura.
+   ===================================================================== */
+function retroLocalKey(){ return "pims_retro_local_v1__"+pimsStorageScope(); }
+function retroLocalLoad(){
+  try{ const o=JSON.parse(localStorage.getItem(retroLocalKey())||'{"ev":[],"cau":{}}');
+       return {ev:Array.isArray(o.ev)?o.ev:[], cau:o.cau||{}}; }
+  catch(e){ return {ev:[],cau:{}}; }
+}
+function retroLocalSave(o){
+  try{ localStorage.setItem(retroLocalKey(), JSON.stringify(o)); return true; }
+  catch(e){ return false; }
+}
+/* Fusiona hoja + local en RETRO_EV / CAUDAL. El caudal local pisa al de la
+   hoja (es una correccion deliberada del operario); los eventos se suman.
+   Se llama tras cada connectRetro() y tras cada captura. */
+let RETRO_HOJA_EV={}, RETRO_HOJA_CAU={};
+function retroFusionar(){
+  const L=retroLocalLoad();
+  CAUDAL=Object.assign({}, RETRO_HOJA_CAU, L.cau);
+  const out={};
+  Object.keys(RETRO_HOJA_EV).forEach(pk=>{ out[pk]=RETRO_HOJA_EV[pk].map(x=>Object.assign({},x,{fuente:"hoja"})); });
+  L.ev.forEach(r=>{
+    if(r.enviado) return; // ya viajó a la hoja: la hoja es la fuente ahora, evita duplicar la fila
+    const pool=POOL_INDEX?POOL_INDEX[r.pk]:null;
+    const vol=pool?pool.vol:null;
+    const f=parseFecha(r.fecha);
+    if(!f) return;
+    let m3=(r.m3!=null&&r.m3>0)?r.m3:null, origen="volumen";
+    if(m3==null && r.min>0 && CAUDAL[r.pk]>0){ m3=r.min*CAUDAL[r.pk]*60; origen="minutos"; }
+    if(!(m3>0)) return;
+    const frac=vol?m3/vol:0;
+    (out[r.pk]=out[r.pk]||[]).push({fecha:f,min:r.min||null,m3,estado:r.estado||"realizado",
+      origen,frac,sospechoso:frac>RETRO_FRAC_MAX,fuente:"local",id:r.id});
+  });
+  Object.keys(out).forEach(pk=>out[pk].sort((a,b)=>a.fecha-b.fecha));
+  RETRO_EV=out;
+  const ult={};
+  Object.keys(out).forEach(pk=>{
+    const r=out[pk].filter(x=>x.estado==="realizado");
+    if(r.length) ult[pk]=r[r.length-1].fecha;
+  });
+  RETRO_FECHA=ult;
+}
+/* El caudal local se guarda en m³/s, la misma unidad del encabezado de la
+   hoja, para que hoja y captura sean intercambiables sin conversion. */
+function retroSetCaudal(pk, valor){
+  const L=retroLocalLoad();
+  const n=(valor===""||valor==null)?null:numDec(valor);
+  if(n==null||!isFinite(n)||n<=0) delete L.cau[pk]; else L.cau[pk]=n;
+  retroLocalSave(L); retroFusionar(); renderAll();
+}
+function retroAddEvento(pk, fecha, min, m3, estado){
+  if(!pk||!fecha) return {ok:false,msg:"Falta el vaso o la fecha."};
+  const mn=(min===""||min==null)?null:numDec(min);
+  const vv=(m3===""||m3==null)?null:numDec(m3);
+  if(!(mn>0) && !(vv>0)) return {ok:false,msg:"Indica los minutos o el volumen en m³."};
+  if(!(vv>0) && !(CAUDAL[pk]>0)) return {ok:false,msg:"Este vaso no tiene caudal registrado: escribe el volumen en m³, o define el caudal en Parámetros."};
+  const L=retroLocalLoad();
+  L.ev.push({id:"r"+Date.now()+Math.floor(Math.random()*1e4), pk, fecha, min:mn, m3:vv, estado:estado||"realizado"});
+  if(!retroLocalSave(L)) return {ok:false,msg:"No se pudo guardar en este dispositivo."};
+  retroFusionar(); renderAll();
+  return {ok:true};
+}
+function retroDelEvento(id){
+  const L=retroLocalLoad();
+  L.ev=L.ev.filter(x=>x.id!==id);
+  retroLocalSave(L); retroFusionar(); renderAll();
+}
+
+/* =====================================================================
+   ESCRITURA HACIA LA HOJA — captura local -> RETROLAVADO vía Apps Script
+   ─────────────────────────────────────────────────────────────────────
+   Todo lo anterior (RETRO_EV, retroFusionar) es LECTURA: hoja -> PIMS.
+   Esto es el sentido contrario: lo que el operario captura en PIMS se
+   escribe en la hoja, para que "fecha, caudal, volumen y piscina" queden
+   siempre en el registro que perdura y no solo en este dispositivo.
+
+   Reutiliza el mismo patron ya validado en produccion por el Extractor de
+   Laboratorio (lexEnviarBatchAlSheet / lexGetWebhookUrl): URL anclada en
+   Hojas Ancladas (recurso 'webhook'), POST de JSON, respuesta
+   {success, mensaje, datos:{insertados, duplicados, errores}}.
+
+   Correccion de formato: el operario puede teclear "7,2" o "7.2"
+   indistintamente. numDec() ya resuelve eso a un numero JS puro antes de
+   armar el payload — se envia como NUMBER, no como texto. Google Sheets
+   formatea segun el locale de la hoja al escribir un numero nativo, asi
+   que el problema de coma/punto se resuelve en el parseo del lado de
+   PIMS, no con un truco de formato en el Apps Script.
+
+   Idempotencia: cada evento local ya trae su propio id (retroAddEvento).
+   Se envia como clave; el Apps Script la escribe en una columna ID nueva
+   y la usa para no duplicar en reintentos — ver script pegado abajo.
+   ===================================================================== */
+function retroGetWebhookUrl(){
+  if(typeof getAnchorConfig!=='function') return '';
+  const cfg=getAnchorConfig().retroWebhook;
+  return (cfg && cfg.id && cfg.id.includes('script.google.com')) ? cfg.id : '';
+}
+async function retroEnviarAlSheet(){
+  const url=retroGetWebhookUrl();
+  const btn=document.getElementById('rtSyncBtn'); const msg=document.getElementById('rtSyncMsg');
+  const setMsg=(t,cls)=>{ if(msg){ msg.style.display='block'; msg.className='note'+(cls?' '+cls:''); msg.innerHTML=t; } };
+  if(!url){ setMsg('⚠ No hay Motor de Escritura de Retrolavados anclado. Ve a <b>Conexión de datos → Hojas Ancladas</b> y pega la URL del Apps Script (instrucciones abajo).','bad'); return; }
+  const L=retroLocalLoad();
+  const pend=L.ev.filter(x=>!x.enviado);
+  if(!pend.length){ setMsg('No hay registros pendientes de este dispositivo por enviar.',''); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Enviando…'; }
+  setMsg('Enviando '+pend.length+' registro'+(pend.length===1?'':'s')+' a la hoja…','');
+  const registros=pend.map(r=>{
+    const pool=POOL_INDEX[r.pk];
+    return { id:r.id, sede:pool?pool.sede:'', piscina:pool?pool.piscina:'',
+      fecha:r.fecha, minutos:(r.min!=null?numDec(r.min):null), volumen_m3:(r.m3!=null?numDec(r.m3):null),
+      caudal_m3s:(CAUDAL[r.pk]!=null?CAUDAL[r.pk]:null), estado:r.estado||'realizado' };
+  });
+  try{
+    const res=await fetch(url,{method:'POST',body:JSON.stringify({registros})});
+    const data=await res.json();
+    const det=data.datos||{};
+    if(data.success){
+      const idsOk=new Set((det.ids_insertados||det.ids_procesados||registros.map(r=>r.id)));
+      L.ev.forEach(x=>{ if(idsOk.has(x.id)) x.enviado=true; });
+      retroLocalSave(L);
+      let t=`✓ ${det.insertados||registros.length} registrado(s) en la hoja`;
+      if(det.duplicados) t+=` · ${det.duplicados} ya existían (omitidos)`;
+      if(det.errores&&det.errores.length) t+=` · ⚠ ${det.errores.length} con error: ${det.errores.join(' | ')}`;
+      setMsg(t, det.errores&&det.errores.length?'':'ok');
+      await new Promise(r=>setTimeout(r,1500));
+      try{ await connectRetro(); }catch(e){}
+    } else {
+      setMsg('⚠ '+(data.mensaje||'El Apps Script respondió sin éxito.'),'bad');
+    }
+  }catch(err){
+    setMsg('⚠ Error de conexión: '+err.message+'. Verifica que el Apps Script esté desplegado como aplicación web con acceso "Cualquier usuario".','bad');
+  }
+  if(btn){ btn.disabled=false; btn.textContent='📤 Enviar a la hoja'; }
+  renderAll();
+}
+
+async function connectRetro(){
+  const li=document.getElementById("linkRetro").value.trim();
+  lastLinks.retro=li;
+  if(!li){ setStatus("Pega el enlace de la hoja de retrolavados y caudales.","info"); return; }
+  setStatus("Conectando retrolavados…","info");
+  try{
+    const {headers,data}=toObjects(await fetchCSV(li));
+    parseRetrolavados(headers,data);
+    retroFusionar();
+    const nEv=Object.values(RETRO_EV).reduce((a,x)=>a+x.length,0);
+    const d=(DIAG&&DIAG.retro&&DIAG.retro.descartes)||{};
+    const desc=[]; if(d.sin_volumen) desc.push(d.sin_volumen+" sin volumen ni caudal");
+    if(d.sin_pool) desc.push(d.sin_pool+" sin vaso reconocido"); if(d.sin_fecha) desc.push(d.sin_fecha+" sin fecha");
+    const U=(DIAG&&DIAG.retro&&DIAG.retro.unidad)||{};
+    const sos=(DIAG&&DIAG.retro&&DIAG.retro.sospechosos)||[];
+    let aviso=desc.length?` · ⚠ descartadas: ${desc.join(", ")}`:"";
+    aviso+=` · caudal en ${U.nombre}${U.declarada?"":" (asumido, el encabezado no declara unidad)"}`;
+    if(sos.length){
+      const ej=sos[0];
+      const RZ={volumen:"volumen mayor al 30% del vaso",caudal_bajo:"caudal demasiado bajo para ser un retrolavado",caudal_alto:"caudal fuera de rango físico"};
+      aviso+=` · 🚩 ${sos.length} registro${sos.length===1?"":"s"} EXCLUIDO${sos.length===1?"":"S"} del modelo`
+           +` (${ej.pool}: ${RZ[ej.razon]||"dato implausible"} — ${vfx(ej.m3,3)} m³ = ${v(ej.pct,1)}% del vaso`
+           +`${ej.origen==="minutos"?`, de ${ej.min} min × ${ej.caudal} ${U.nombre} = ${vfx(ej.m3h,1)} m³/h`:""}).`
+           +` Verifica que el valor del caudal corresponda a la unidad del encabezado.`;
+    }
+    if(nEv===0 && Object.keys(CAUDAL).length===0)
+      setStatus(`⚠ Retrolavados: hoja leída pero 0 registros utilizables. Revisa los encabezados (SEDE · PISCINA · CAUDAL M3H · FECHA · MINUTOS · VOLUMEN M3 · ESTADO).${aviso}`,"err");
+    else setStatus(`✓ Retrolavados ✓ (${nEv} eventos · ${Object.keys(CAUDAL).length} caudales)${aviso}`,"ok");
+  }catch(e){ setStatus("⚠ Retrolavados ✗ ("+e.message+")","err"); }
+  igTryRenderWhenReady();
+}
+
 /* carga de la hoja de Activos: Hidráulico/Automatización/Accesorios (mismo mecanismo CSV de Google Sheets) → INFRA
    Función nueva e independiente, no modifica connectLab() ni connectOT(). */
 async function connectInfra(){
@@ -14885,8 +15623,8 @@ async function connectInfra(){
    dispositivo (localStorage no se sincroniza ni se sube a ningún
    servidor).
    ================================================================= */
-const LINK_FIELDS=['med','ins','ot','lab','contra','infra'];
-const LINK_FIELD_INPUT={med:'linkMed',ins:'linkIns',ot:'linkOT',lab:'linkLab',contra:'linkContra',infra:'linkInfra'};
+const LINK_FIELDS=['med','ins','ot','lab','contra','infra','retro'];
+const LINK_FIELD_INPUT={med:'linkMed',ins:'linkIns',ot:'linkOT',lab:'linkLab',contra:'linkContra',infra:'linkInfra',retro:'linkRetro'};
 
 /* =================================================================
    MÓDULO DE HOJAS ANCLADAS (Capa v9) — PIMS
@@ -14917,13 +15655,22 @@ const ANCHOR_DEFAULTS={
   contra:{id:'1ImG-mf_PIbOfrUkSCgUlyofHIqDzDEcmg4BzvSx3WWk', code:'CONTRA', label:'Contramuestreo',                      icon:'🧫', kind:'sheet'},
   infra: {id:'',                                            code:'INFRA',  label:'Activos (Hidráulico/Automatización)', icon:'⚙', kind:'sheet'},
   ot:    {id:'',                                            code:'OT',     label:'Salidas OfficeTrack',                 icon:'🛠', kind:'sheet'},
+  retro: {id:'17McaAu4mBMnW0VPRzn7Vi1-vFlW0xScLsDIUuagYr_0', code:'RETRO', label:'Retrolavados y caudales de filtro',   icon:'💧', kind:'sheet'},
   labWebhook:{id:'https://script.google.com/macros/s/AKfycbwQkSvhm1-E6LKKusdscdpKbnRSrqVjf63NKWn20o7L9painKHkSjSnkl2BK9IVSURp/exec',
-              code:'MOTOR-LAB', label:'Apps Script — Motor de Extracción Laboratorio', icon:'🔌', kind:'webhook'}
+              code:'MOTOR-LAB', label:'Apps Script — Motor de Extracción Laboratorio', icon:'🔌', kind:'webhook'},
+  retroWebhook:{id:'https://script.google.com/macros/s/AKfycbxpuh29LBKdiWMirVN-rHVXsrLx3zin_IkaUkpIdfA-CbA2_IuQW3C1GCT0oasCn4-8rg/exec', code:'MOTOR-RETRO', label:'Apps Script — Escritura de Retrolavados', icon:'📤', kind:'webhook'}
+};
+/* Metadatos de UI que difieren por webhook (renderAnchoredPanel es generico;
+   esto evita hardcodear "Extractor Lab" cuando ya hay un segundo motor). */
+const WEBHOOK_META={
+  labWebhook:{usadoPor:'Extractor Lab', emptyMsg:'Aún no se ha configurado el Motor de Extracción de Laboratorio. Pega la URL del Apps Script (termina en <code>/exec</code>) para activarlo.'},
+  retroWebhook:{usadoPor:'Registro de Retrolavados', emptyMsg:'Aún no se ha configurado el Motor de Escritura de Retrolavados. Pega la URL del Apps Script (termina en <code>/exec</code>) para que PIMS pueda escribir en la hoja RETROLAVADO en vez de solo leerla.'}
 };
 /* Acceso a los arreglos reales ya existentes en el sistema — sin duplicar estado.
    'labWebhook' no tiene arreglo propio (es un endpoint de escritura, no una
    fuente de lectura CSV) — se omite intencionalmente de este mapa. */
-const ANCHOR_ARRAY_GETTER={ med:()=>MED, ins:()=>MOVS, lab:()=>LAB, contra:()=>CONTRA, infra:()=>INFRA, ot:()=>MOVS_OT };
+const ANCHOR_ARRAY_GETTER={ med:()=>MED, ins:()=>MOVS, lab:()=>LAB, contra:()=>CONTRA, infra:()=>INFRA, ot:()=>MOVS_OT,
+  retro:()=>Object.values(RETRO_EV).reduce((a,x)=>a.concat(x),[]) };
 
 function pimsAnchorKey(){ return "pis_anchored_sheets_v1__"+pimsStorageScope(); }
 function pimsAnchorAutoSyncKey(){ return "pis_anchor_autosync_v1__"+pimsStorageScope(); }
@@ -15026,6 +15773,7 @@ async function syncAnchoredField(field){
   else if(field==='lab'||field==='contra') await connectLab();
   else if(field==='ot') await connectOT();
   else if(field==='infra') await connectInfra();
+  else if(field==='retro') await connectRetro();
   return true;
 }
 /* Sincronización completa EN PARALELO de todas las hojas ancladas. Se agrupa por
@@ -15043,8 +15791,8 @@ async function syncAnchoredSheets(showStatus){
     return true;
   };
   const hasMed=setIf('med'), hasIns=setIf('ins'), hasLab=setIf('lab'),
-        hasContra=setIf('contra'), hasOt=setIf('ot'), hasInfra=setIf('infra');
-  if(!hasMed&&!hasIns&&!hasLab&&!hasContra&&!hasOt&&!hasInfra){ renderAnchoredPanel(); return; }
+        hasContra=setIf('contra'), hasOt=setIf('ot'), hasInfra=setIf('infra'), hasRetro=setIf('retro');
+  if(!hasMed&&!hasIns&&!hasLab&&!hasContra&&!hasOt&&!hasInfra&&!hasRetro){ renderAnchoredPanel(); return; }
   if(showStatus) setStatus("🔗 Sincronizando hojas ancladas…","info");
   const t0=performance.now();
   const tasks=[];
@@ -15052,6 +15800,7 @@ async function syncAnchoredSheets(showStatus){
   if(hasLab||hasContra) tasks.push(connectLab());
   if(hasOt) tasks.push(connectOT());
   if(hasInfra) tasks.push(connectInfra());
+  if(hasRetro) tasks.push(connectRetro());
   await Promise.allSettled(tasks);
   const dt=(performance.now()-t0)/1000;
   ANCHOR_LAST_SYNC=new Date();
@@ -15069,7 +15818,7 @@ function renderAnchoredPanel(){
   const cfg=getAnchorConfig();
   const toggle=document.getElementById("anchorAutoSyncToggle");
   if(toggle) toggle.checked=loadAnchorAutoSyncPref();
-  const order=['med','ins','lab','contra','infra','ot','labWebhook'];
+  const order=['med','ins','lab','contra','infra','ot','retro','labWebhook','retroWebhook'];
   grid.innerHTML=order.map(field=>{
     const c=cfg[field];
     const isWebhook=c.kind==='webhook';
@@ -15079,7 +15828,8 @@ function renderAnchoredPanel(){
     const stateLbl = !anchored ? 'Sin configurar' : (isWebhook ? 'Motor conectado' : (n>0 ? 'Anclada · sincronizada' : 'Anclada · pendiente de sync'));
     const esc=(c.id||'').replace(/"/g,'&quot;');
     const editPlaceholder = isWebhook ? "Pega la URL del Apps Script (…/exec)" : "Pega el enlace o el ID de la hoja de Google Sheets";
-    const emptyMsg = isWebhook ? `Aún no se ha configurado el Motor de Extracción de Laboratorio. Pega la URL del Apps Script (termina en <code>/exec</code>) para activarlo.` : `Aún no se ha anclado una hoja para ${c.code}. Pega el enlace de Google Sheets para activarla.`;
+    const wm = WEBHOOK_META[field]||{};
+    const emptyMsg = isWebhook ? (wm.emptyMsg||`Aún no se ha configurado ${c.label}.`) : `Aún no se ha anclado una hoja para ${c.code}. Pega el enlace de Google Sheets para activarla.`;
     return `
     <div class="acard ac-${state}">
       <div class="ac-top">
@@ -15096,7 +15846,7 @@ function renderAnchoredPanel(){
           ? `<div class="ac-row"><span>${isWebhook?'Endpoint':'ID anclado'}</span><b title="${esc}">…${(c.id||'').slice(-10)}</b></div>
              ${isWebhook?'':`<div class="ac-row"><span>Registros</span><b>${n.toLocaleString('es-CO')}</b></div>`}
              ${c.updatedAt?`<div class="ac-row"><span>Re-anclad${isWebhook?'o':'a'}</span><b>${new Date(c.updatedAt).toLocaleDateString('es-CO')}</b></div>`:''}
-             ${isWebhook?'<div class="ac-row"><span>Usado por</span><b>Extractor Lab</b></div>':''}`
+             ${isWebhook?`<div class="ac-row"><span>Usado por</span><b>${wm.usadoPor||'—'}</b></div>`:''}`
           : `<div class="ac-empty">${emptyMsg}</div>`}
       </div>
       <div class="ac-edit" id="anchorEdit-${field}" style="display:none">
@@ -15409,6 +16159,7 @@ function renderAll(){
   const __epoch = ++__renderAllEpoch;
   const __t0 = performance.now();
   __evalPoolCache = new Map();
+  retroSyncDesdeHistorial();
   sanitizeDataForClient();
   if(!MED.length && !MOVS.length && !MOVS_OT.length && !LAB.length && !CONTRA.length && !INFRA.length){ updateSystemState(); return; }
   LAST_SYNC=new Date();
@@ -17268,7 +18019,7 @@ function loadDemo(){
   const lo=document.getElementById("linkOT"); if(lo)lo.value="";
   const ll=document.getElementById("linkLab"); if(ll)ll.value=""; const lc=document.getElementById("linkContra"); if(lc)lc.value="";
   const li2=document.getElementById("linkInfra"); if(li2)li2.value="";
-  DIAG={med:null,ins:null,ot:null,unmapped_prod:new Set(),unmapped_pool:new Set(),sin_vol:new Set(),infra:null};
+  DIAG={med:null,ins:null,ot:null,unmapped_prod:new Set(),unmapped_pool:new Set(),sin_vol:new Set(),infra:null,retro:null};
   RETRO={}; DEMANDA_MANUAL=null; TURB_MANUAL={}; MOVS_OT=[];
   document.getElementById("fDesde").value="";document.getElementById("fHasta").value="";document.getElementById("fSede").value="";document.getElementById("fPisc").value="";
   let r=toObjects(parseCSV(DEMO_MED)); MED=parseMediciones(r.headers,r.data);
@@ -17477,7 +18228,7 @@ function hhRenderCentro(cont, pools, f){
     const pk = poolKey(p.sede,p.piscina);
     return `<tr onclick="hhAbrirPlan('${pk}')" style="cursor:pointer" tabindex="0" onkeydown="if(event.key==='Enter')hhAbrirPlan('${pk}')">
       <td><b>${p.piscina}</b><br><span class="hint" style="font-size:11px">${p.sede} · ${v(p.vol,p.vol<10?1:0)} m³</span></td>
-      <td>${a.ph!=null?v(a.ph,2):'—'}</td>
+      <td>${a.ph!=null?v(a.ph,2):'—'}<br><span class="hint" style="font-size:11px">obj. ${v(M.phObj.ph,2)}</span></td>
       <td><b>${v(M.islPost,3)}</b></td>
       <td>${bisTxt}</td>
       <td>${acc}</td>
@@ -17487,7 +18238,7 @@ function hhRenderCentro(cont, pools, f){
   cont.innerHTML = `${kpis}
     <div class="tablewrap"><table><thead><tr><th>Vaso</th><th>pH</th><th>ISL</th><th>Bisulfato</th><th>Acción de equilibrio</th><th>Prioridad</th></tr></thead>
     <tbody>${trs}</tbody></table></div>
-    <div class="note" style="margin-top:8px">La columna <b>ISL</b> es el valor tras dosificar el bisulfato, sin corregir alcalinidad — sobre ese valor se asigna la prioridad. Toca una fila para abrir su plan.</div>`;
+    <div class="note" style="margin-top:8px">La columna <b>ISL</b> es el valor tras dosificar el bisulfato, sin corregir alcalinidad — sobre ese valor se asigna la prioridad. El <b>objetivo de pH</b> no es fijo: es el punto de la banda ${v(P.ph_banda[0],2)}–${v(P.ph_banda[1],2)} que deja el ISL más cerca de 0 con la dureza y la alcalinidad de cada vaso, y solo se corrige por encima de ${v(P.ph_tolerancia,2)}. Toca una fila para abrir su plan.</div>`;
 }
 
 /* ---------- 2 · Plan del día ---------- */
@@ -17514,14 +18265,14 @@ function hhRenderPlan(cont, pools, f){
     bisHtml = `<div class="iecard good">
       <div class="ie-h"><span class="ie-nm">1 · Bisulfato de sodio</span><span class="tag r">Requerida</span></div>
       <div class="balq-isl-value" style="font-size:32px">${v(M.bis.kg,2)} <small style="font-size:15px">kg</small></div>
-      <div class="method-note">Corrige pH <b>${v(e.hh_ph,2)} → 7,25</b>. Promedio de ${e.hh_nMuestras} muestra${e.hh_nMuestras===1?'':'s'} del último día.</div>
+      <div class="method-note">Corrige pH <b>${v(e.hh_ph,2)} → ${v(M.phObj.ph,2)}</b>. Promedio de ${e.hh_nMuestras} muestra${e.hh_nMuestras===1?'':'s'} del último día.</div>
       <div class="balq-isl-formula" style="margin-top:8px">ΔTA consumida: <b>${v(M.bis.dTA,2)} ppm</b> · TA tras dosificar: <b>${v(M.taPost,1)} ppm</b></div>
     </div>`;
   } else {
-    const banda = M.bis.razon==='banda';
+    const tol = M.bis.razon==='tolerancia';
     bisHtml = `<div class="iecard">
-      <div class="ie-h"><span class="ie-nm">1 · Bisulfato de sodio</span><span class="tag ${banda?'nd':'cumple'}">${banda?'En banda':'En objetivo'}</span></div>
-      <div class="method-note">${banda?`pH <b>${v(e.hh_ph,2)}</b> sobre objetivo pero bajo el disparo de 7,40 — dosis en gramos, no pesable con exactitud.`:`pH <b>${v(e.hh_ph,2)}</b> en objetivo o por debajo.`}</div>
+      <div class="ie-h"><span class="ie-nm">1 · Bisulfato de sodio</span><span class="tag ${tol?'nd':'cumple'}">${tol?'En tolerancia':'En objetivo'}</span></div>
+      <div class="method-note">${tol?`pH <b>${v(e.hh_ph,2)}</b> — por encima del objetivo <b>${v(M.phObj.ph,2)}</b> pero dentro de la <b>tolerancia operativa (≤ ${v(P.ph_tolerancia,2)})</b>: <b>no corrijas</b>. Bajar desde aquí es una microdosis sin provecho; la corrección se dispara solo <b>por encima de ${v(P.ph_tolerancia,2)}</b>. El equilibrio se resuelve con el pH real de <b>${v(e.hh_ph,2)}</b>, no con el objetivo.`:`pH <b>${v(e.hh_ph,2)}</b>, en el objetivo <b>${v(M.phObj.ph,2)}</b> o por debajo — <b>no dosifiques ácido</b>. El pH sube solo hacia el objetivo por desgasificación de CO₂ y por el hipoclorito; el equilibrio se evalúa ahí y por eso no se pide bicarbonato para compensarlo.`}</div>
     </div>`;
   }
 
@@ -17555,8 +18306,67 @@ function hhRenderPlan(cont, pools, f){
         <b>${M.bis.aplica?'③':'②'} Tras el plan completo:</b> ISL final <b>${v(M.islFinal,3)}</b>
       </span></div></div>`;
 
+  /* Observacion del pH objetivo: el operador ve el mismo numero que sostiene
+     la dosis de la tarjeta de Monitoreo, y por que se eligio ese y no otro. */
+  const PO = M.phObj, clampTxt = PO.clamp==='alto'
+      ? `El pH que anularía el ISL sería <b>${v(PO.phIdeal,2)}</b>, por encima del techo utilizable: se toma <b>${v(PO.hi,2)}</b> y el resto del equilibrio lo aporta la alcalinidad.`
+      : (PO.clamp==='bajo'
+      ? `El pH que anularía el ISL sería <b>${v(PO.phIdeal,2)}</b>, por debajo de la banda: se toma el piso <b>${v(PO.lo,2)}</b> y el resto del equilibrio lo aporta la alcalinidad.`
+      : (PO.clamp==='dato' ? `Sin dureza o alcalinidad válidas: se usa el piso de banda <b>${v(PO.lo,2)}</b>.`
+      : `El pH que anula el ISL cae <b>dentro</b> de la banda, así que se adopta tal cual — sin necesidad de corregir alcalinidad.`));
+  const RA = M.redAdic || {requerida:false};
+  const redHtml = RA.requerida ? `<div class="alertbox" style="margin-top:10px">
+      <b>Reducción adicional de pH — requiere validación.</b> Esta no sería una corrección de pH por norma: el pH ya estaría en el piso de <b>${v(RA.piso,2)}</b>, dentro de rango. Es una corrección <b>por ISL</b>: el equilibrio calcocarbónico pediría bajar hasta <b>${v(RA.phIdeal,2)}</b> (${v(RA.delta,2)} unidades más, ≈ <b>${v(RA.kg,2)} kg</b> de bisulfato adicionales).
+      <br><br>PIMS <b>no la propone automáticamente</b>: bajar de ${v(RA.piso,2)} acerca el vaso al límite inferior útil y reduce la eficiencia de cloración. La ruta ya calculada arriba resuelve el mismo ISL por <b>${RA.alternativa==='bicarbonato'?'alcalinidad':(RA.alternativa==='purga'?'purga de dilución':(RA.alternativa==='campana'?'campaña de dureza':'alcalinidad'))}</b>, sin tocar el pH. Decide con supervisión cuál de las dos aplicas — no ambas.
+    </div>` : '';
+  const phObjHtml = `<div class="iecard" style="margin-top:14px">
+      <div class="ie-h"><span class="ie-nm">pH objetivo de este vaso</span><span class="tag ${PO.clamp?'y':'v'}">${PO.clamp?'Acotado a la banda':'Dentro de banda'}</span></div>
+      <div class="balq-isl-value" style="font-size:32px">${vfx(PO.ph,2)}</div>
+      <div class="method-note">Banda utilizable <b>${v(PO.lo,2)}–${v(PO.hi,2)}</b>${PO.topeNorma?` — la banda configurada llega a ${v(P.ph_banda[1],2)}, pero <b>manda el máximo normativo ${v(rango().ph[1],2)}</b> (Res. 0234/2026): por encima, el propio Monitoreo marcaría el pH fuera de norma y penalizaría el IRAPI.`:''}. ${clampTxt}</div>
+      <div class="balq-isl-formula" style="margin-top:8px">pH de equilibrio = 12,1 − CD(${v(e.durBase!=null?e.durBase:0,0)} ppm) − CA(${v(M.taPost,1)} ppm) − CT(${v((e.agg&&e.agg.temp!=null)?e.agg.temp:28,1)} °C) = <b>${PO.phIdeal!=null?vfx(PO.phIdeal,3):'—'}</b></div>
+      <div class="method-note" style="margin-top:6px">Este es el pH sobre el que se calcula la dosis que aparece en la tarjeta de <b>Monitoreo</b> de ${p.piscina}. Se corrige solo cuando el pH supera <b>${v(P.ph_tolerancia,2)}</b>; entre el objetivo y ese valor se considera aceptable y no se dosifica.</div>
+      ${redHtml}
+    </div>`;
+
+  /* Ventana de aplicacion del bicarbonato, alineada al dia de bloque. */
+  const VB=hhVentanaBicarbonato(p, M, f);
+  const NDIA=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+  let ventanaHtml="";
+  if(VB.estado==="opcional"){
+    ventanaHtml=`<div class="iecard" style="margin-top:14px">
+      <div class="ie-h"><span class="ie-nm">Ventana de aplicación</span><span class="tag v">Sin acción</span></div>
+      <div class="method-note">${VB.motivo}</div></div>`;
+  } else {
+    const tag = VB.estado==="programado"?"y":(VB.estado==="anticipar"?"r":"o");
+    const tit = VB.estado==="programado"?"Programado":(VB.estado==="anticipar"?"Anticipar":"Aplicar hoy");
+    const fechaTxt = VB.dest? `${NDIA[VB.dest.getDay()]} ${fmtFecha(VB.dest)}` : "—";
+    const met = VB.tasa && VB.tasa.suficiente
+      ? `Subida de pH estimada del histórico: <b>${vfx(VB.tasa.porClase.valle.p80,3)}</b> valle · <b>${vfx(VB.tasa.porClase.rampa.p80,3)}</b> rampa · <b>${vfx(VB.tasa.porClase.pico.p80,3)}</b> pico pH/día (percentil 80 de ${VB.tasa.n} intervalos, método ${VB.tasa.metodo}). Mediana ${vfx(VB.tasa.mediana,3)}.`
+      : `<b>Sin histórico suficiente</b> (${VB.tasa?VB.tasa.n:0} intervalos, mínimo ${HH_MIN_INTERVALOS}): se asume que la ΔTA del bisulfato de hoy se repite cada día. Supuesto conservador.`;
+    let cuerpo;
+    if(VB.estado==="programado"){
+      cuerpo=`<div class="method-note">Aplica el bicarbonato el <b>${fechaTxt}</b>, día de tratamiento en bloque (confianza ${VB.confianza}%). Faltan <b>${VB.dias}</b> día${VB.dias===1?'':'s'}.
+        <br><br>Diferir es seguro: proyectando sin corregir alcalinidad, el vaso llega a esa fecha con <b>${vfx(VB.taFin,1)} ppm</b> de alcalinidad e <b>ISL ${vfx(VB.islFin,3)}</b>, ambos dentro de norma. No perseguimos ISL 0 a diario; perseguimos <b>no salir de norma</b> hasta la ventana correcta.
+        <br><br><b>Ese día, mide la AT con fotómetro después del bisulfato y antes del bicarbonato.</b> La dosis de arriba está calculada sobre una TA proyectada; la medición real es lo que la vuelve válida.</div>`;
+    } else if(VB.estado==="anticipar"){
+      const r=VB.ruptura;
+      cuerpo=`<div class="alertbox"><b>No esperes al día de bloque.</b> Proyectando sin corregir alcalinidad, el vaso <b>sale de norma el ${NDIA[r.fecha.getDay()]} ${fmtFecha(r.fecha)}</b> (en ${r.dia} día${r.dia===1?'':'s'}), antes del tratamiento del ${fechaTxt}: ${r.alc?`alcalinidad caería a <b>${vfx(r.ta,1)} ppm</b>, bajo el mínimo de ${v(rango().alc[0],0)}`:''}${r.alc&&r.isl_f?" y ":""}${r.isl_f?`ISL llegaría a <b>${vfx(r.isl,3)}</b>, fuera de ${v(rango().isl[0],1)} a ${v(rango().isl[1],1)}`:''}.
+        <br><br>Aplica hoy. Si además hay bisulfato en el plan, respeta la secuencia del protocolo: bisulfato, 60–90 min de recirculación, <b>medición de AT</b>, y solo entonces el bicarbonato.</div>`;
+    } else {
+      cuerpo=`<div class="method-note">${VB.motivo} Sigue la secuencia del protocolo: bisulfato, 60–90 min, medición de AT con fotómetro, bicarbonato.</div>`;
+    }
+    ventanaHtml=`<div class="iecard" style="margin-top:14px">
+      <div class="ie-h"><span class="ie-nm">Ventana de aplicación del bicarbonato</span><span class="tag ${tag}">${tit}</span></div>
+      ${cuerpo}
+      <div class="method-note" style="margin-top:8px">${met}${VB.planeados?` Incluye <b>${VB.planeados}</b> retrolavado${VB.planeados===1?'':'s'} planeado${VB.planeados===1?'':'s'} en la proyección.`:''}</div>
+      <div class="method-note" style="margin-top:6px"><b>Por qué no a diario:</b> el bisulfato destruye estequiométricamente la alcalinidad recién aplicada (NaHSO₄ + NaHCO₃ → Na₂SO₄ + H₂O + CO₂), y la dosis se calcula sobre TA proyectada mientras la alcalinidad se mide una vez por semana. El día de bloque es el único donde hay medición real entre ambos productos.</div>
+    </div>`;
+  }
+
   cont.innerHTML = `${selectorHtml}
     <div class="panels-grid">${bisHtml}${eqHtml}</div>
+    ${phObjHtml}
+    ${ventanaHtml}
     <div class="iecard" style="margin-top:14px">
       <div class="ie-h"><span class="ie-nm">Trayectoria del ISL</span></div>
       <svg id="${gaugeId}" viewBox="0 0 560 90" style="width:100%;height:90px;display:block;margin-top:6px"></svg>
@@ -17583,7 +18393,7 @@ function hhRenderSimulador(cont, pools, f){
       <div class="ie-h"><span class="ie-nm">Configure el punto de partida</span></div>
       <div class="balq-model-sliders">
         <div class="balq-model-field"><div class="balq-model-label-row"><label for="hh-s-ph">pH</label><span class="balq-model-val" id="hh-s-ph-val">${base.ph.toFixed(2)}</span></div>
-          <input type="range" id="hh-s-ph" min="7.25" max="8.2" step="0.01" value="${base.ph}"></div>
+          <input type="range" id="hh-s-ph" min="7.20" max="8.2" step="0.01" value="${base.ph}"></div>
         <div class="balq-model-field"><div class="balq-model-label-row"><label for="hh-s-ta">Alcalinidad</label><span class="balq-model-val" id="hh-s-ta-val">${v(base.ta,0)} ppm</span></div>
           <input type="range" id="hh-s-ta" min="40" max="200" step="1" value="${base.ta}"></div>
         <div class="balq-model-field"><div class="balq-model-label-row"><label for="hh-s-t">Temperatura</label><span class="balq-model-val" id="hh-s-t-val">${v(base.T,1)}°C</span></div>
@@ -17597,7 +18407,7 @@ function hhRenderSimulador(cont, pools, f){
         <div class="method-note" id="hh-sim-hh-note"></div>
       </div>
       <div class="iecard" id="hh-sim-card-leg">
-        <div class="ie-h"><span class="ie-nm">Actual en producción · lineal (3,845)</span></div>
+        <div class="ie-h"><span class="ie-nm">Modelo anterior · lineal (3,845 → pH 7,30)</span></div>
         <div class="balq-isl-value" id="hh-sim-leg-out" style="font-size:28px">—</div>
         <div class="method-note" id="hh-sim-leg-note"></div>
       </div>
@@ -17613,20 +18423,23 @@ function hhRenderSimulador(cont, pools, f){
     document.getElementById('hh-s-ta-val').textContent=v(ta,0)+' ppm';
     document.getElementById('hh-s-t-val').textContent=v(T,1)+'°C';
 
-    const hh = hhDosisBisulfato(ph,ta,T,V);
+    const phObj = hhPhObjetivo(base.dur,ta,T).ph;
+    const hh = hhDosisBisulfato(ph,ta,T,V,phObj);
     if(hh.aplica){
       document.getElementById('hh-sim-hh-out').innerHTML = v(hh.kg,2)+' <small style="font-size:14px">kg</small>';
-      document.getElementById('hh-sim-hh-note').innerHTML = `Consume <b>${v(hh.dTA,2)} ppm</b> de alcalinidad · pureza real 0,952`;
+      document.getElementById('hh-sim-hh-note').innerHTML = `Hacia pH objetivo <b>${v(phObj,2)}</b> (dureza ${v(base.dur,0)} ppm) · consume <b>${v(hh.dTA,2)} ppm</b> de alcalinidad · pureza real ${v(P.pureza_bisulfato,3)}`;
     } else {
       document.getElementById('hh-sim-hh-out').textContent = 'Sin dosificación';
-      document.getElementById('hh-sim-hh-note').textContent = hh.razon==='banda' ? 'En banda muerta (7,25–7,40)' : 'pH en objetivo';
+      document.getElementById('hh-sim-hh-note').innerHTML = hh.razon==='tolerancia'
+        ? `Sobre el objetivo <b>${v(phObj,2)}</b> pero dentro de la tolerancia operativa (≤ ${v(P.ph_tolerancia,2)}) — no se corrige`
+        : `pH en el objetivo <b>${v(phObj,2)}</b> o por debajo`;
     }
     let legKg=null;
     if(ph>7.30){
       const gLeg = P.k_ph_bisulfato*V*(ph-7.30)/P.conc_bisulfato*(ta/100);
       legKg = gLeg/1000;
       document.getElementById('hh-sim-leg-out').innerHTML = v(legKg,2)+' <small style="font-size:14px">kg</small>';
-      document.getElementById('hh-sim-leg-note').innerHTML = `Fórmula lineal hacia pH 7,30`;
+      document.getElementById('hh-sim-leg-note').innerHTML = `Fórmula lineal histórica, objetivo fijo pH 7,30 — ya no está en producción`;
     } else {
       document.getElementById('hh-sim-leg-out').textContent = 'Sin dosificación';
       document.getElementById('hh-sim-leg-note').textContent = 'pH ≤ 7,30';
@@ -17636,7 +18449,7 @@ function hhRenderSimulador(cont, pools, f){
       const err = (legKg-hh.kg)/hh.kg*100;
       al.innerHTML = `<b>Desviación del modelo actual:</b> ${err>0?'sobredosifica':'subdosifica'} en <b>${(err>=0?'+':'')}${v(err,1)}%</b> (${v(Math.abs(legKg-hh.kg),2)} kg) frente a la solución exacta.`;
     } else {
-      al.innerHTML = `<b>Comparación no aplicable</b> — los modelos difieren en el umbral de disparo (7,30 vs 7,40 pH).`;
+      al.innerHTML = `<b>Comparación no aplicable</b> — los modelos difieren en el umbral de disparo (7,30 fijo vs. objetivo dinámico + tolerancia 7,35).`;
     }
   };
   ['hh-s-ph','hh-s-ta','hh-s-t'].forEach(id=>document.getElementById(id).addEventListener('input',recalc));
@@ -17650,22 +18463,24 @@ function hhRenderCalibracion(cont, pools, f){
   const ta = (e&&e.atBase!=null)?e.atBase:100, T=(e&&e.agg&&e.agg.temp!=null)?e.agg.temp:30;
   const ph = (e&&e.hh_ph!=null)?e.hh_ph:7.6;
   const V = p.vol;
+  const dur = (e&&e.durBase!=null)?e.durBase:300;
+  const phObj = hhPhObjetivo(dur,ta,T).ph;
   const kEq = (phv)=>{
-    if(phv<=7.26) return null;
-    const D=Math.pow(10,7.25-phv), R=Math.pow(10,phv-hhPka1(T));
-    const dTA=ta*(1-D)/(1+D*R), kg=dTA*V/(416.5*0.952);
-    return kg*1000*0.10/(V*(phv-7.25)*(ta/100));
+    if(phv<=phObj+0.01) return null;
+    const kg = hhKgBisulfato(phv,ta,T,V,phObj).kg;
+    return kg*1000*P.conc_bisulfato/(V*(phv-phObj)*(ta/100));
   };
-  const kActual = kEq(Math.max(ph,7.31));
+  const xIni = Math.max(phObj+0.05, P.ph_tolerancia);
+  const kActual = kEq(Math.max(ph,xIni));
   cont.innerHTML = `<div class="iecard">
       <div class="ie-h"><span class="ie-nm">Constante equivalente vs. pH inicial — ${p.piscina} (${p.sede})</span></div>
       <svg id="hh-calib-curve" viewBox="0 0 560 160" style="width:100%;display:block;margin-top:10px"></svg>
-      <div class="method-note">Punto de operación actual: pH ${v(ph,2)} → constante equivalente <b>${kActual!=null?v(kActual,3):'—'}</b> g.</div>
+      <div class="method-note">Punto de operación actual: pH ${v(ph,2)} → constante equivalente <b>${kActual!=null?v(kActual,3):'—'}</b> g. Calculada contra el pH objetivo de este vaso (<b>${v(phObj,2)}</b>), no contra un valor fijo.</div>
     </div>
     <div class="note" style="margin-top:10px"><b>Lectura:</b> si 3,845 fuera una constante real, la curva sería horizontal. No lo es: cae al subir el pH inicial porque el sistema carbonato se acidifica con más facilidad lejos del pKa₁. Este panel es un indicador de calibración, no un parámetro de dosificación — compara tus dosificaciones reales de campo contra el valor teórico para detectar deriva operacional.</div>`;
   balqDrawCurve('hh-calib-curve', {
-    fn: xv => kEq(xv) || 0, currentX: Math.max(ph,7.31), currentY: kActual || 0,
-    xMin: 7.30, xMax: 8.20, xTicks:[7.3,7.6,7.9,8.2]
+    fn: xv => kEq(xv) || 0, currentX: Math.max(ph,xIni), currentY: kActual || 0,
+    xMin: xIni, xMax: 8.20, xTicks:[xIni,xIni+0.3,xIni+0.6,8.2].map(x=>Math.round(x*100)/100)
   });
 }
 
