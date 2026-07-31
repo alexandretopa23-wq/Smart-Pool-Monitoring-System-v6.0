@@ -4408,7 +4408,7 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
         </div>
       </div>
       <div class="anchored-grid" id="anchoredGrid"></div>
-      <div class="anchored-hint">Estas 6 hojas quedan ancladas por defecto (MED · MOVS · LAB · CONTRA · INFRA · OT). Usa <b>Re-anclar</b> en cada tarjeta para cambiar el enlace sin tocar código — la anulación se guarda solo en este navegador. La sección <b>Conexión manual</b> de abajo permanece como respaldo.</div>
+      <div class="anchored-hint">Estas 7 hojas quedan ancladas por defecto (MED · MOVS · LAB · CONTRA · CONTRA2 · INFRA · OT). Usa <b>Re-anclar</b> en cada tarjeta para cambiar el enlace sin tocar código — la anulación se guarda solo en este navegador. La sección <b>Conexión manual</b> de abajo permanece como respaldo.</div>
     </div>
 
     <details class="manual-conn-fallback" id="manualConnFallback">
@@ -16340,7 +16340,7 @@ function renderAnchoredPanel(){
   const cfg=getAnchorConfig();
   const toggle=document.getElementById("anchorAutoSyncToggle");
   if(toggle) toggle.checked=loadAnchorAutoSyncPref();
-  const order=['med','ins','lab','contra','infra','ot','retro','labWebhook','retroWebhook'];
+  const order=['med','ins','lab','contra','contra2','infra','ot','retro','labWebhook','retroWebhook','contra2Webhook'];
   grid.innerHTML=order.map(field=>{
     const c=cfg[field];
     const isWebhook=c.kind==='webhook';
