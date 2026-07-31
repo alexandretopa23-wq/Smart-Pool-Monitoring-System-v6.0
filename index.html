@@ -4458,8 +4458,14 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
             <input type="text" id="linkContra" placeholder="Pega el enlace de la hoja de contramuestreo del operador">
             <div class="linkslots" id="lslots-contra"></div>
           </div>
+          <div class="fld">
+            <label>Enlace Google Sheets — Contramuestreo 2 (CSV) <small style="color:var(--acen-2)">· acompañamiento independiente</small></label>
+            <input type="text" id="linkContra2" placeholder="Pega el enlace de la pestaña Contramuestreo 2">
+            <div class="linkslots" id="lslots-contra2"></div>
+          </div>
           <div class="src-actions">
             <button class="acc" onclick="connectLab()">Conectar laboratorios</button>
+            <button class="acc" onclick="connectContra2()">Conectar Contramuestreo 2</button>
           </div>
         </div>
       </details>
@@ -5976,7 +5982,7 @@ let LAB_ROT={impar:"ASEBIOL",par:"BIOPOLAB"}; // laboratorio por mes impar/par �
 pimsInitAuth(); /* restaura sesión de cliente guardada en este navegador, si existe (se ejecuta ya declarados MED/MOVS/LAB/CONTRA/INFRA) */
 let TURB_MANUAL={};       // turbidez operacional medida (NTU) POR PISCINA (poolKey) — se ingresa en la sección IRO
 let DIAG={med:null,ins:null,ot:null,unmapped_prod:new Set(),unmapped_pool:new Set(),sin_vol:new Set(),infra:null,retro:null};
-let autoTimer=null, lastLinks={med:"",ins:"",ot:"",lab:"",contra:"",infra:"",retro:""};
+let autoTimer=null, lastLinks={med:"",ins:"",ot:"",lab:"",contra:"",contra2:"",infra:"",retro:""};
 let SHOW_PROJ=false;
 let SHOW_ISL_DETAIL=false, SHOW_DUR_DETAIL=false, SHOW_EFIC=false, SHOW_LAB=false;
 /* Recuerda si el usuario colapsó todas las tarjetas de sede (botón "Ocultar
@@ -16130,6 +16136,25 @@ async function connectInfra(){
   igTryRenderWhenReady();
 }
 
+/* Conexión de la segunda fuente de contramuestreo (CONTRA2 · acompañamiento).
+   Mismo patrón mínimo que connectInfra(): una sola hoja, un solo parser
+   (parseContra2, ya definido junto a parseContra). No toca connectLab() ni
+   CONTRA — son fuentes independientes por diseño (ver igContraCompare). */
+async function connectContra2(){
+  const li=document.getElementById("linkContra2").value.trim();
+  lastLinks.contra2=li;
+  if(!li){ setStatus("Pega el enlace de la hoja Contramuestreo 2.","info"); return; }
+  setStatus("Conectando Contramuestreo 2…","info");
+  try{
+    const {headers,data}=toObjects(await fetchCSV(li));
+    CONTRA2=parseContra2(headers,data);
+    setStatus(`✓ Contramuestreo 2 ✓ (${CONTRA2.length} registros)`,"ok");
+  }catch(e){ setStatus("⚠ Contramuestreo 2 ✗ ("+e.message+")","err"); }
+  syncLabFiltros();
+  igTryRenderWhenReady();
+  renderLab();
+}
+
 /* =================================================================
    RANURAS DE ENLACES GUARDADOS (Conexión de datos)
    ─────────────────────────────────────────────────────────────────
@@ -16142,8 +16167,8 @@ async function connectInfra(){
    dispositivo (localStorage no se sincroniza ni se sube a ningún
    servidor).
    ================================================================= */
-const LINK_FIELDS=['med','ins','ot','lab','contra','infra','retro'];
-const LINK_FIELD_INPUT={med:'linkMed',ins:'linkIns',ot:'linkOT',lab:'linkLab',contra:'linkContra',infra:'linkInfra',retro:'linkRetro'};
+const LINK_FIELDS=['med','ins','ot','lab','contra','contra2','infra','retro'];
+const LINK_FIELD_INPUT={med:'linkMed',ins:'linkIns',ot:'linkOT',lab:'linkLab',contra:'linkContra',contra2:'linkContra2',infra:'linkInfra',retro:'linkRetro'};
 
 /* =================================================================
    MÓDULO DE HOJAS ANCLADAS (Capa v9) — PIMS
@@ -16293,6 +16318,7 @@ async function syncAnchoredField(field){
   if(el) el.value=anchorIdToCsvUrl(cfg.id);
   if(field==='med'||field==='ins') await connectLinks();
   else if(field==='lab'||field==='contra') await connectLab();
+  else if(field==='contra2') await connectContra2();
   else if(field==='ot') await connectOT();
   else if(field==='infra') await connectInfra();
   else if(field==='retro') await connectRetro();
@@ -16313,13 +16339,14 @@ async function syncAnchoredSheets(showStatus){
     return true;
   };
   const hasMed=setIf('med'), hasIns=setIf('ins'), hasLab=setIf('lab'),
-        hasContra=setIf('contra'), hasOt=setIf('ot'), hasInfra=setIf('infra'), hasRetro=setIf('retro');
-  if(!hasMed&&!hasIns&&!hasLab&&!hasContra&&!hasOt&&!hasInfra&&!hasRetro){ renderAnchoredPanel(); return; }
+        hasContra=setIf('contra'), hasContra2=setIf('contra2'), hasOt=setIf('ot'), hasInfra=setIf('infra'), hasRetro=setIf('retro');
+  if(!hasMed&&!hasIns&&!hasLab&&!hasContra&&!hasContra2&&!hasOt&&!hasInfra&&!hasRetro){ renderAnchoredPanel(); return; }
   if(showStatus) setStatus("🔗 Sincronizando hojas ancladas…","info");
   const t0=performance.now();
   const tasks=[];
   if(hasMed||hasIns) tasks.push(connectLinks());
   if(hasLab||hasContra) tasks.push(connectLab());
+  if(hasContra2) tasks.push(connectContra2());
   if(hasOt) tasks.push(connectOT());
   if(hasInfra) tasks.push(connectInfra());
   if(hasRetro) tasks.push(connectRetro());
@@ -18181,7 +18208,7 @@ async function connectLinks(){
   setStatus((bad?"⚠ ":"✓ ")+msgs.join(" · ")+(bad?'<br><small>Si ves error de red abriendo el archivo localmente, publica la hoja y usa la app desde GitHub Pages (CORS bloquea archivos locales).</small>':""), bad?"err":"ok");
   igTryRenderWhenReady();
 }
-function reloadNow(){ if(lastLinks.med||lastLinks.ins){ connectLinks(); } if(lastLinks.ot){ connectOT(); } if(lastLinks.lab||lastLinks.contra){ connectLab(); } if(lastLinks.infra){ connectInfra(); } }
+function reloadNow(){ if(lastLinks.med||lastLinks.ins){ connectLinks(); } if(lastLinks.ot){ connectOT(); } if(lastLinks.lab||lastLinks.contra){ connectLab(); } if(lastLinks.contra2){ connectContra2(); } if(lastLinks.infra){ connectInfra(); } }
 function setAuto(){ const s=+document.getElementById("auto").value; if(autoTimer)clearInterval(autoTimer); if(s>0){autoTimer=setInterval(reloadNow,s*1000);} }
 
 /* ===================== DEMO ===================== */
