@@ -14311,7 +14311,6 @@ const LEX_SEDE_PATTERNS = [
   // MOFLI
   { pattern: 'mofli', name: 'MOFLI' },
   { pattern: 'cef', name: 'MOFLI' },
-  { pattern: 'avenida 68', name: 'MOFLI' },
   // CARRERA 60
   { pattern: 'carrera 60', name: 'CARRERA 60' },
   { pattern: 'carrera60', name: 'CARRERA 60' },
@@ -14463,8 +14462,36 @@ function lexExtractDate(text) {
 
 function lexExtractSede(text) {
   const upper = lexStripAccents(text.toUpperCase()).replace(/\s+/g, ' ');
-  
+  const lab = lexDetectLaboratory(text);
+
+  // --- ASEBIOL: el campo "LUGAR:" es estructurado y confiable — se prioriza
+  // sobre el escaneo de texto completo. Necesario porque el encabezado ASEBIOL
+  // incluye la dirección de notificación CORPORATIVA del cliente (ej. dirección
+  // de COMPENSAR en Avenida 68), que puede coincidir por accidente con el patrón
+  // de otra sede (ej. MOFLI) y empatar en longitud con la sede real, generando
+  // una detección incorrecta. Ver caso Carrera 60 / MOFLI (jul-2026).
+  if (lab === 'ASEBIOL') {
+    const lugarMatch = text.match(/LUGAR[:\*\s]+([^|\n]+)/i);
+    if (lugarMatch) {
+      const lugar = lugarMatch[1].trim();
+      const lugarUpper = lexStripAccents(lugar.toUpperCase());
+
+      let bestMatch = null;
+      let bestLen = 0;
+      for (const sede of LEX_SEDE_PATTERNS) {
+        const sedePattern = lexStripAccents(sede.pattern);
+        if (lugarUpper.includes(sedePattern) && sedePattern.length > bestLen) {
+          bestMatch = sede.name;
+          bestLen = sedePattern.length;
+        }
+      }
+      if (bestMatch) return bestMatch;
+    }
+  }
+
   // Búsqueda 1: Patrones directos en todo el texto
+  // (ruta original, sin cambios — usada como primera opción para BIOPOLAB
+  // y como respaldo para ASEBIOL si el campo "LUGAR:" no matcheó nada)
   let bestMatch = null;
   let bestLen = 0;
   
@@ -14493,7 +14520,9 @@ function lexExtractSede(text) {
     }
   }
   
-  // Búsqueda 3: Extraer valor de "LUGAR:" (ASEBIOL)
+  // Búsqueda 3: Extraer valor de "LUGAR:" (ASEBIOL) — respaldo final si
+  // Búsqueda 1 tampoco encontró nada (caso ya cubierto arriba con prioridad,
+  // se mantiene aquí por robustez ante variaciones futuras de formato)
   const lugarMatch = text.match(/LUGAR[:\*\s]+([^|\n]+)/i);
   if (lugarMatch) {
     const lugar = lugarMatch[1].trim();
