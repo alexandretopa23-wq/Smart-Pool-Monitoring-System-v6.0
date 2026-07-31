@@ -4018,8 +4018,135 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
   .conc-prow{ flex-wrap:wrap; }
   .conc-pinfo{ flex-basis:100%; order:3; margin-top:2px; }
 }
+
+/* =====================================================================
+   MÓDULO DE CAPTURA — CONTRAMUESTREO PISCINERO / CONTRAMUESTREO 2
+   ─────────────────────────────────────────────────────────────────────
+   Namespace .ctm-* (contramuestreo). Reutiliza tokens de color existentes
+   (--good/--bad/--warn/--acen) sin definir paleta nueva. Glass + relieve
+   consistente con .panel/.iecard ya establecidos. No modifica ninguna de
+   las 16 funciones protegidas: es aditivo.
+   ===================================================================== */
+.ctm-origin{border-radius:14px;padding:12px 18px;margin-bottom:18px;font-size:var(--fs-12);display:flex;
+  align-items:center;gap:12px;border:1px solid;line-height:1.55;backdrop-filter:blur(14px) saturate(160%);
+  -webkit-backdrop-filter:blur(14px) saturate(160%)}
+.ctm-origin.piscinero{background:linear-gradient(120deg, rgba(6,182,212,.16), rgba(6,182,212,.05));border-color:rgba(6,182,212,.4);color:#B7EEF8}
+.ctm-origin.mk{background:linear-gradient(120deg, rgba(139,92,246,.16), rgba(139,92,246,.05));border-color:rgba(139,92,246,.4);color:#E2D8FC}
+.ctm-origin b{color:#fff}
+.ctm-origin-ic{font-size:var(--fs-17);flex-shrink:0}
+
+.ctm-panel{position:relative;background:linear-gradient(165deg, rgba(38,38,38,.92) 0%, rgba(24,24,24,.94) 100%);
+  backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);
+  border-radius:20px;padding:2px;margin-bottom:20px;box-shadow:var(--sh-elev3)}
+.ctm-panel::before{content:"";position:absolute;inset:0;border-radius:20px;padding:1px;
+  background:linear-gradient(150deg, rgba(255,255,255,.16), rgba(255,255,255,.02) 40%, rgba(0,0,0,0) 60%, rgba(230,81,0,.14));
+  -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.ctm-panel-inner{position:relative;padding:22px 24px 24px;border-radius:18px;min-width:0}
+.ctm-panel h2{margin:0 0 4px;font-size:var(--fs-14-5);font-weight:800;color:#fff;display:flex;align-items:center;gap:9px}
+.ctm-panel .ctm-sub{font-size:var(--fs-11);color:var(--muted-d);margin:0 0 20px;max-width:640px}
+
+.ctm-ctx-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,.9fr) minmax(0,1.2fr);gap:12px;margin-bottom:20px}
+.ctm-fld label{display:block;font-size:var(--fs-10);font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted-d);margin-bottom:7px}
+.ctm-fld select,.ctm-fld input{width:100%;padding:10px 12px;border:1px solid var(--line-d);border-radius:10px;
+  background:linear-gradient(165deg, rgba(43,43,43,.9), rgba(31,31,31,.9));color:#fff;font-size:var(--fs-13);
+  font-family:inherit;transition:var(--dur-instant);box-shadow:inset 0 1px 3px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.03)}
+.ctm-fld select:focus,.ctm-fld input:focus{outline:none;border-color:var(--acen);box-shadow:var(--ring-acen), inset 0 1px 3px rgba(0,0,0,.35)}
+
+.ctm-param-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:10px}
+.ctm-param{position:relative;border-radius:14px;padding:13px 14px;min-width:0;
+  transition:background .25s ease, border-color .25s ease, box-shadow .25s ease;
+  border:1px solid var(--line-d);background:linear-gradient(160deg, rgba(43,43,43,.85), rgba(31,31,31,.85));
+  box-shadow:var(--sh-elev2), inset 0 1px 0 rgba(255,255,255,.04)}
+.ctm-param.wide{grid-column:span 2}
+.ctm-param:focus-within{border-color:var(--acen);box-shadow:var(--ring-acen), var(--sh-elev2)}
+.ctm-param label{display:flex;align-items:baseline;justify-content:space-between;gap:6px;font-size:var(--fs-10-5);
+  font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted-d);margin-bottom:9px;
+  min-width:0;overflow-wrap:break-word;line-height:1.3}
+.ctm-param .ctm-unit{font-size:var(--fs-9);font-weight:600;color:#6b6b6b;text-transform:none;flex-shrink:0;white-space:nowrap}
+.ctm-param .ctm-val-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.ctm-param input{flex:1;border:none;background:transparent;color:#fff;font-size:var(--fs-19,19px);font-weight:700;
+  font-variant-numeric:tabular-nums;padding:0;font-family:inherit;min-width:0}
+.ctm-param input::placeholder{color:#4d4d4d;font-weight:600}
+.ctm-param input:focus{outline:none}
+.ctm-param .ctm-status-ic{font-size:var(--fs-14);opacity:0;transition:opacity .2s ease;flex-shrink:0}
+.ctm-param .ctm-status-ic.show{opacity:1}
+.ctm-param .ctm-norm-hint{font-size:var(--fs-9);color:#6b6b6b;margin-top:6px;font-weight:600;overflow-wrap:break-word;line-height:1.3}
+
+.ctm-param.ok{border-color:rgba(61,220,132,.45);
+  background:linear-gradient(160deg, rgba(61,220,132,.14), rgba(31,31,31,.9) 65%);
+  box-shadow:var(--sh-elev2), inset 0 1px 0 rgba(255,255,255,.05), 0 0 0 1px rgba(61,220,132,.08)}
+.ctm-param.ok .ctm-status-ic{color:var(--good)}
+.ctm-param.bad{border-color:rgba(255,107,94,.55);
+  background:linear-gradient(160deg, rgba(255,107,94,.18), rgba(31,31,31,.9) 65%);
+  box-shadow:var(--sh-elev2), inset 0 1px 0 rgba(255,255,255,.05), 0 0 0 1px rgba(255,107,94,.1)}
+.ctm-param.bad .ctm-status-ic{color:var(--bad)}
+.ctm-param.bad input{color:#FFD4CF}
+.ctm-param.implausible{border-color:#FF6B5E;
+  background:linear-gradient(160deg, rgba(255,107,94,.28), rgba(31,31,31,.92) 60%);
+  box-shadow:var(--sh-elev2), 0 0 0 3px rgba(255,107,94,.16);
+  animation:ctm-pulse-warn 1.4s ease-in-out infinite}
+@keyframes ctm-pulse-warn{0%,100%{box-shadow:var(--sh-elev2), 0 0 0 3px rgba(255,107,94,.16)}50%{box-shadow:var(--sh-elev2), 0 0 0 5px rgba(255,107,94,.28)}}
+.ctm-param.implausible .ctm-norm-hint{color:var(--bad);font-weight:800}
+
+.ctm-actions-row{display:flex;align-items:center;justify-content:space-between;margin-top:22px;padding-top:18px;
+  border-top:1px solid var(--line-soft);gap:14px;flex-wrap:wrap}
+.ctm-pending-note{font-size:var(--fs-11-5);color:var(--muted-d);display:flex;align-items:center;gap:8px}
+.ctm-pending-dot{width:7px;height:7px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px rgba(245,167,66,.6);flex-shrink:0}
+.ctm-btn-row{display:flex;gap:10px;flex-wrap:wrap}
+.ctm-btn-ghost{background:linear-gradient(165deg, rgba(43,43,43,.9), rgba(31,31,31,.9));border:1px solid var(--line-d);
+  color:var(--txt-d);padding:11px 17px;border-radius:11px;font-size:var(--fs-12-5);font-weight:700;cursor:pointer;
+  transition:var(--dur-instant);box-shadow:var(--sh-elev2)}
+.ctm-btn-ghost:hover{background:linear-gradient(165deg, rgba(51,51,51,.95), rgba(35,35,35,.95))}
+.ctm-btn-primary{background:linear-gradient(135deg,var(--acen-2),var(--acen) 55%,#b03d00);border:none;color:#fff;
+  padding:11px 22px;border-radius:11px;font-size:var(--fs-12-5);font-weight:800;cursor:pointer;
+  box-shadow:0 6px 18px rgba(230,81,0,.4), inset 0 1px 0 rgba(255,255,255,.2);transition:var(--dur-instant);
+  display:flex;align-items:center;gap:9px;letter-spacing:.2px}
+.ctm-btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.ctm-btn-primary:active{transform:translateY(0)}
+.ctm-btn-primary.mk{background:linear-gradient(135deg,#A78BFA,var(--mk,#8B5CF6) 55%,#5B21B6);box-shadow:0 6px 18px rgba(139,92,246,.4), inset 0 1px 0 rgba(255,255,255,.2)}
+.ctm-btn-primary:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none;box-shadow:none}
+.ctm-btn-primary:disabled:hover{filter:none;transform:none}
+.ctm-block-note{font-size:var(--fs-11);color:var(--bad);font-weight:700;display:none;align-items:center;gap:6px;
+  margin-top:10px;width:100%}
+.ctm-block-note.show{display:flex}
+.ctm-block-note .ctm-dot{width:6px;height:6px;border-radius:50%;background:var(--bad);box-shadow:0 0 8px rgba(255,107,94,.6);flex-shrink:0}
+
+.ctm-queue-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.ctm-queue-head h3{margin:0;font-size:var(--fs-12-5);font-weight:800;color:#fff}
+.ctm-queue-count{font-size:var(--fs-10-5);font-weight:800;background:linear-gradient(165deg, rgba(43,43,43,.9), rgba(31,31,31,.9));
+  color:var(--muted-d);padding:4px 11px;border-radius:20px;border:1px solid var(--line-d)}
+.ctm-queue-empty{font-size:var(--fs-12);color:var(--muted-d);padding:8px 0}
+
+@media(max-width:900px){
+  .ctm-param-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .ctm-param.wide{grid-column:span 3}
+  .ctm-ctx-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+}
+@media(max-width:760px){
+  .ctm-param-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ctm-param.wide{grid-column:span 2}
+  .ctm-ctx-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+  .ctm-panel-inner{padding:18px 16px 20px}
+  .ctm-actions-row{flex-direction:column;align-items:stretch}
+  .ctm-btn-row{width:100%}
+  .ctm-btn-row .ctm-btn-ghost,.ctm-btn-row .ctm-btn-primary{flex:1;justify-content:center}
+}
+@media(max-width:640px){
+  .ctm-ctx-row{grid-template-columns:1fr}
+  .ctm-origin{flex-direction:column;align-items:flex-start;gap:8px;padding:12px 14px}
+}
+@media(max-width:480px){
+  .ctm-param-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+  .ctm-param.wide{grid-column:span 2}
+  .ctm-param{padding:11px 12px}
+  .ctm-param input{font-size:17px}
+  .ctm-panel{border-radius:16px}
+  .ctm-panel-inner{padding:15px 13px 17px}
+}
 </style>
 </head>
+
 <body>
 
 <!-- ===================== PIMS · CONTROL DE ACCESO POR CLIENTE ===================== -->
@@ -4856,12 +4983,14 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
         </div>
       </div>
       <!-- Subnavegación interna del módulo laboratorio -->
-      <div id="labSubnav" class="labsubnav" style="display:none">
+      <div id="labSubnav" class="labsubnav" style="display:flex">
         <button class="lst on" data-tab="resumen" onclick="setLabTab('resumen')"><span class="lst-ic">&#x1F4CA;</span><span>Resumen<span class="lst-sub">Vista general</span></span></button>
         <button class="lst" data-tab="validacion" onclick="setLabTab('validacion')"><span class="lst-ic">&#x2696;&#xFE0F;</span><span>Validaci&#xF3;n<span class="lst-sub">ICO &middot; IRO</span></span></button>
         <button class="lst" data-tab="historico" onclick="setLabTab('historico')"><span class="lst-ic">&#x1F9E0;</span><span>Inteligencia<span class="lst-sub">Hist&#xF3;rica</span></span></button>
         <button class="lst" data-tab="micro" onclick="setLabTab('micro')"><span class="lst-ic">&#x1F9A0;</span><span>Microbiolog&#xED;a<span class="lst-sub">Patógenos</span></span></button>
         <button class="lst" data-tab="tendencias" onclick="setLabTab('tendencias')"><span class="lst-ic">&#x1F4C8;</span><span>Tendencias<span class="lst-sub">Series &middot; heatmap</span></span></button>
+        <button class="lst" data-tab="ctm1" onclick="setLabTab('ctm1')"><span class="lst-ic">&#x1F9EB;</span><span>Contramuestreo Piscinero<span class="lst-sub">Captura de datos</span></span></button>
+        <button class="lst" data-tab="ctm2" onclick="setLabTab('ctm2')"><span class="lst-ic">&#x1FA7A;</span><span>Contramuestreo 2<span class="lst-sub">Acompañamiento</span></span></button>
       </div>
       <div id="labCont"></div>
     </div>
@@ -5530,6 +5659,7 @@ function sanitizeDataForClient(){
   if(typeof MOVS_OT!=="undefined") stripArr(MOVS_OT);
   if(typeof LAB!=="undefined") stripArr(LAB);
   if(typeof CONTRA!=="undefined") stripArr(CONTRA);
+  if(typeof CONTRA2!=="undefined") stripArr(CONTRA2);
   if(typeof INFRA!=="undefined") stripArr(INFRA);
 }
 
@@ -5838,6 +5968,7 @@ let MOVS=[];     // salidas ALP (ASEOS La Perfección)
 let MOVS_OT=[];  // salidas OFFICETRACK (para conciliación OFFICETRACK vs ALP)
 let LAB=[];      // resultados de laboratorio externo (módulo Laboratorios PIS)
 let CONTRA=[];   // resultados de contramuestreo del operador (módulo Laboratorios PIS)
+let CONTRA2=[];  // resultados de contramuestreo del asesor de acompañamiento (misma hoja, tab "CONTRAMUESTREO 2")
 let INFRA=[];    // activos: sistema hidráulico, automatización y accesorios (módulo Activos)
 let SHOW_LCMP=true, SHOW_LHIST=false, SHOW_LRANK=true, SHOW_LMICRO=false, SHOW_LTURB=false; // sub-secciones del módulo lab
 let ICO_CRIT=40;          // criterio máximo aceptable de concordancia ICO (% RPD) — editable en Parámetros
@@ -10377,6 +10508,27 @@ function parseContra(headers,data){
   }
   return out;
 }
+/* Clon exacto de parseContra() para la segunda fuente de contramuestreo
+   (acompañamiento independiente, hoja "CONTRAMUESTREO 2"). Mismo shape de
+   objeto de salida a propósito — permite reutilizar icoClass()/aggContra()
+   sin cambios llamándolas dos veces (ver igContraCompare) en vez de
+   modificar evalLab(), que sigue intacta y consumiendo solo CONTRA. */
+function parseContra2(headers,data){
+  const out=[];
+  for(const o of data){
+    const sede=H(o,"SEDE"), pisc=H(o,"PISCINA"); if(!sede||!pisc) continue;
+    const pool=matchPool(sede,pisc);
+    out.push({
+      pool, sede:pool?pool.sede:normSede(sede), piscina:pool?pool.piscina:pisc,
+      fecha:parseFecha(H(o,"FECHA ENTREGA","FECHA")),
+      ph:num(H(o,"PH")), dur:num(H(o,"DUREZA")), alc:num(H(o,"ALCALINIDAD")),
+      isl:num(H(o,"INDICE DE LANGELIER","INDICEL")), irapiRep:num(H(o,"IRAPI")),
+      cl_libre:num(H(o,"CLORO LIBRE")), cl_comb:num(H(o,"CLORO COMBINADO")),
+      turb:num(H(o,"TURBIDEZ")), orp:num(H(o,"ORP")), responsable:H(o,"RESPONSABLE")
+    });
+  }
+  return out;
+}
 /* conformidad microbiológica (criterios de la especificación) */
 function microConf(raw, kind){
   if(raw==null) return {has:false};
@@ -10898,11 +11050,19 @@ function arbitrajeConsenso(key,cleanA,cleanB,medVals){
 
 function renderLab(){
   const cont=document.getElementById("labCont");
+  /* Las pestañas de captura (ctm1/ctm2) no dependen de que haya LAB cargado:
+     el piscinero debe poder capturar contramuestreo aunque el informe del
+     laboratorio de turno aún no haya llegado. Se resuelven antes del guard
+     de LAB.length que corta el resto del módulo. */
+  if(LAB_TAB==='ctm1' || LAB_TAB==='ctm2'){
+    const sub=document.getElementById("labSubnav"); if(sub) sub.style.display='flex';
+    cont.innerHTML = LAB_TAB==='ctm1' ? ctmRenderPanel('piscinero') : ctmRenderPanel('mk');
+    ctmBindPanel(LAB_TAB==='ctm1'?'piscinero':'mk');
+    return;
+  }
   if(!LAB.length){
-
-    const sub=document.getElementById("labSubnav"); if(sub) sub.style.display='none';
-    cont.innerHTML=emptyMsg("Conecta la hoja <b>3 · Resultados de Laboratorio</b> (y opcionalmente la <b>4 · Contramuestreo</b>) en el panel <b>Conexión de datos</b>, o usa <b>Ver con datos de ejemplo</b>.");
     updateLabFiltInfo();
+    cont.innerHTML=emptyMsg("Conecta la hoja <b>3 · Resultados de Laboratorio</b> (y opcionalmente la <b>4 · Contramuestreo</b>) en el panel <b>Conexión de datos</b>, o usa <b>Ver con datos de ejemplo</b>.");
     return;
   }
   /* El módulo laboratorio usa sus propios filtros independientes (lFDesde, lFHasta, lFSede, lFPisc).
@@ -15593,6 +15753,336 @@ async function retroEnviarAlSheet(){
   renderAll();
 }
 
+/* =====================================================================
+   MÓDULO DE CAPTURA — CONTRAMUESTREO (PISCINERO + MK)
+   ─────────────────────────────────────────────────────────────────────
+   Reutiliza el mismo patrón ya validado en producción por retroLocalKey/
+   retroAddEvento/retroEnviarAlSheet: captura local -> cola en localStorage
+   -> POST en lote al Apps Script -> re-sync desde la hoja anclada. Un solo
+   Apps Script (contra2Webhook) escribe en las DOS pestañas del mismo libro
+   según el parámetro "hoja" que se le envía.
+
+   Homologación de coma/punto: usa la MISMA lógica de numDec() (última coma
+   o punto = separador decimal). No sustituye a num()/numDec(), que siguen
+   intocadas — esta es una capa de captura que corre ANTES de que el dato
+   entre al flujo normal, para poder mostrar el estado visual en vivo y
+   bloquear la carga si el valor cae fuera de rango físicamente posible
+   (ej. pH=730, alcalinidad=1100, cloro libre=3500 — probable error de
+   tecleo sin separador decimal en el teléfono).
+
+   Rangos normativos: tomados de rango() (Normal) para no duplicar criterio;
+   IRAPI y rango físico plausible por parámetro se definen aparte porque
+   rango() no los expone directamente.
+   ===================================================================== */
+const CTM_ORIGENES = {
+  piscinero: {hoja:'CONTRAMUESTREO PISCINERO', label:'Contramuestreo Piscinero', tab:'ctm1'},
+  mk:        {hoja:'CONTRAMUESTREO 2',         label:'Contramuestreo 2',         tab:'ctm2'}
+};
+
+/* Rango normativo (norma) + rango físicamente plausible (guarda anti-typo)
+   por parámetro. La norma se deriva de rango('Normal') para no hardcodear
+   un segundo criterio — rango('Estricta') no aplica aquí porque la captura
+   es previa a saber a qué piscina exacta corresponde en algunos flujos;
+   se recalcula por piscina en ctmEvaluarCampo usando el tipo real. */
+function ctmRangos(tipoPiscina){
+  const R = rango(tipoPiscina||'Normal');
+  return {
+    ph:      {min:R.ph[0],       max:R.ph[1],       pmin:0,    pmax:14,   unit:'unidades', label:'pH'},
+    dur:     {min:0,             max:R.dur_max,      pmin:0,    pmax:2000, unit:'mg/L',     label:'Dureza'},
+    alc:     {min:R.alc[0],      max:R.alc[1],       pmin:0,    pmax:2000, unit:'mg/L',     label:'Alcalinidad'},
+    isl:     {min:R.isl[0],      max:R.isl[1],       pmin:-3,   pmax:3,    unit:'ISL',      label:'Índice Langelier'},
+    irapi:   {min:0,             max:20,             pmin:0,    pmax:100,  unit:'%',        label:'IRAPI'},
+    cl_libre:{min:R.cl_libre[0], max:R.cl_libre[1],  pmin:0,    pmax:15,   unit:'mg/L',     label:'Cloro libre'},
+    cl_comb: {min:0,             max:R.cl_comb_max,  pmin:0,    pmax:10,   unit:'mg/L',     label:'Cloro combinado'},
+    turb:    {min:0,             max:1,              pmin:0,    pmax:50,   unit:'NTU',      label:'Turbidez'},
+    orp:     {min:0,             max:R.orp_max,       pmin:0,    pmax:1200, unit:'mV',       label:'ORP'}
+  };
+}
+const CTM_PARAM_ORDER = ['ph','dur','alc','isl','irapi','cl_libre','cl_comb','turb','orp'];
+
+/* Homologación de decimales — misma lógica que numDec(), duplicada a
+   propósito como capa de captura (numDec() en sí no se modifica). */
+function ctmHomologar(v){
+  if(v===null||v===undefined) return null;
+  let t=v.toString().trim();
+  if(t==="") return null;
+  t=t.replace(/[^0-9.,\-]/g,"");
+  if(t===""||t==="-") return null;
+  const c=t.lastIndexOf(","), d=t.lastIndexOf(".");
+  if(c!==-1&&d!==-1){ t = c>d ? t.replace(/\./g,"").replace(",",".") : t.replace(/,/g,""); }
+  else if(c!==-1){ t=t.replace(/,/g,"."); }
+  const n=parseFloat(t);
+  return isFinite(n)?n:null;
+}
+
+function ctmLocalKey(origen){ return "pims_ctm_"+origen+"_local_v1__"+pimsStorageScope(); }
+function ctmLocalLoad(origen){
+  try{ const o=JSON.parse(localStorage.getItem(ctmLocalKey(origen))||'{"ev":[]}');
+       return {ev:Array.isArray(o.ev)?o.ev:[]}; }
+  catch(e){ return {ev:[]}; }
+}
+function ctmLocalSave(origen, o){
+  try{ localStorage.setItem(ctmLocalKey(origen), JSON.stringify(o)); return true; }
+  catch(e){ return false; }
+}
+function ctmGetWebhookUrl(){
+  if(typeof getAnchorConfig!=='function') return '';
+  const cfg=getAnchorConfig().contra2Webhook;
+  return (cfg && cfg.id && cfg.id.includes('script.google.com')) ? cfg.id : '';
+}
+
+/* Agrega un registro a la cola local (no lo envía todavía). Valida
+   presencia de sede/piscina/fecha y que al menos un parámetro tenga valor;
+   NO bloquea por "fuera de norma" (eso solo colorea), pero SÍ exige que no
+   haya ningún valor fuera del rango físicamente plausible, replicando en
+   el guardado lo mismo que ya bloquea el botón en la UI (defensa en
+   profundidad si algún día se llama esta función fuera del formulario). */
+function ctmAddEvento(origen, reg){
+  const L=ctmLocalLoad(origen);
+  const id="ctm"+Date.now()+Math.floor(Math.random()*1e4);
+  L.ev.push(Object.assign({id, enviado:false}, reg));
+  if(!ctmLocalSave(origen, L)) return {ok:false, msg:"No se pudo guardar en este dispositivo."};
+  return {ok:true, id};
+}
+function ctmDelEvento(origen, id){
+  const L=ctmLocalLoad(origen);
+  L.ev=L.ev.filter(x=>x.id!==id);
+  ctmLocalSave(origen, L);
+  renderLab();
+}
+
+/* Envía en lote todos los pendientes de un origen al Apps Script único.
+   Contrato idéntico al ya validado por retroEnviarAlSheet: POST JSON,
+   respuesta {success, mensaje, datos:{insertados,duplicados,errores}}. */
+async function ctmEnviarAlSheet(origen){
+  const url=ctmGetWebhookUrl();
+  const meta=CTM_ORIGENES[origen];
+  const msgId = origen==='piscinero' ? 'ctm1SyncMsg' : 'ctm2SyncMsg';
+  const msg=document.getElementById(msgId);
+  const setMsg=(t,cls)=>{ if(msg){ msg.style.display='block'; msg.className='note'+(cls?' '+cls:''); msg.innerHTML=t; } };
+  if(!url){ setMsg('⚠ No hay Motor de Contramuestreo anclado. Ve a <b>Conexión de datos → Hojas Ancladas</b> y pega la URL del Apps Script.','bad'); return; }
+  const L=ctmLocalLoad(origen);
+  const pend=L.ev.filter(x=>!x.enviado);
+  if(!pend.length){ setMsg('No hay registros pendientes de este dispositivo por cargar.',''); return; }
+  const btn=document.getElementById(origen==='piscinero'?'ctm1LoadBtn':'ctm2LoadBtn');
+  if(btn){ btn.disabled=true; btn.dataset.origLabel=btn.innerHTML; btn.innerHTML='Cargando…'; }
+  setMsg('Cargando '+pend.length+' registro'+(pend.length===1?'':'s')+' a la hoja…','');
+  const registros=pend.map(r=>({
+    id:r.id, fecha:r.fecha, sede:r.sede, piscina:r.piscina,
+    ph:r.ph, dur:r.dur, alc:r.alc, isl:r.isl, irapi:r.irapi,
+    cl_libre:r.cl_libre, cl_comb:r.cl_comb, turb:r.turb, orp:r.orp,
+    responsable:r.responsable||''
+  }));
+  try{
+    const res=await fetch(url,{method:'POST',body:JSON.stringify({hoja:meta.hoja, registros})});
+    const data=await res.json();
+    const det=data.datos||{};
+    if(data.success){
+      const idsOk=new Set(det.ids_insertados||registros.map(r=>r.id));
+      L.ev.forEach(x=>{ if(idsOk.has(x.id)) x.enviado=true; });
+      ctmLocalSave(origen, L);
+      let t=`✓ ${det.insertados||0} registro(s) cargado(s) en "${meta.hoja}"`;
+      if(det.duplicados) t+=` · ${det.duplicados} ya existían (omitidos)`;
+      if(det.errores&&det.errores.length) t+=` · ⚠ ${det.errores.length} con error`;
+      setMsg(t, det.errores&&det.errores.length?'':'ok');
+      await new Promise(r=>setTimeout(r,1500));
+      try{ await syncAnchoredField(origen==='piscinero'?'contra':'contra2'); }catch(e){}
+    } else {
+      setMsg('⚠ '+(data.mensaje||'El Apps Script respondió sin éxito.'),'bad');
+    }
+  }catch(err){
+    setMsg('⚠ Error de conexión: '+err.message+'. Verifica que el Apps Script esté desplegado como aplicación web con acceso "Cualquier usuario".','bad');
+  }
+  if(btn){ btn.disabled=false; btn.innerHTML=btn.dataset.origLabel||'📤 Cargar datos'; }
+  renderLab();
+}
+
+/* ---- Render del panel de captura (HTML como string, mismo estilo que
+   calRetroHTML) — namespace .ctm-*, definido en el <style> principal. ---- */
+function ctmRenderPanel(origen){
+  const meta=CTM_ORIGENES[origen];
+  const isPisc = origen==='piscinero';
+  const bandClass = isPisc ? 'piscinero' : 'mk';
+  const icon = isPisc ? '🧫' : '🩺';
+  const bandTxt = isPisc
+    ? 'Contramuestreo tomado por <b>el piscinero de la sede</b>. Se compara frente al resultado del laboratorio de turno (ASEBIOL / BIOPOLAB) para calcular el ICO de campo.'
+    : 'Contramuestreo de <b>acompañamiento independiente</b>, cargado también por el piscinero con los datos entregados por el laboratorio de apoyo. Se compara frente al laboratorio de turno por separado del contramuestreo del piscinero, sin mezclarse.';
+  const iso=(d)=>{ const z=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); };
+  const hoy=new Date();
+  const f=getLFilt ? getLFilt() : {};
+  const pools=POOLS.filter(p=>poolPassFilter(p,f));
+  const sedesU=[...new Set(pools.map(p=>p.sede))];
+  const sedeOpts=sedesU.map(s=>`<option value="${s}">${s}</option>`).join("");
+  const primeraSede=sedesU[0]||'';
+  const piscOpts=pools.filter(p=>p.sede===primeraSede).map(p=>`<option value="${p.piscina}">${p.piscina}</option>`).join("");
+  const R=ctmRangos('Normal');
+  const paramFields = CTM_PARAM_ORDER.map(k=>{
+    const r=R[k];
+    const wide = k==='orp' ? ' ctm-param wide' : ' ctm-param';
+    return `<div class="${wide.trim()}" data-param="${k}" data-min="${r.min}" data-max="${r.max}" data-pmin="${r.pmin}" data-pmax="${r.pmax}">
+      <label><span>${r.label}</span><span class="ctm-unit">${r.unit}</span></label>
+      <div class="ctm-val-row"><input type="text" inputmode="decimal" id="ctm_${origen}_${k}" placeholder="0"><span class="ctm-status-ic">●</span></div>
+      <div class="ctm-norm-hint">Norma ${vfx(r.min,2)} a ${vfx(r.max,2)}</div>
+    </div>`;
+  }).join("");
+
+  const L=ctmLocalLoad(origen);
+  const pend=L.ev.filter(x=>!x.enviado).sort((a,b)=>b._ts-a._ts);
+  const pendCount=pend.length;
+  const queueRows = pend.length ? pend.map(r=>`
+    <tr>
+      <td>${r.fecha||'—'}</td><td>${r.sede||'—'}</td><td>${r.piscina||'—'}</td>
+      <td>${r.ph!=null?vfx(r.ph,2):'—'}</td><td>${r.cl_libre!=null?vfx(r.cl_libre,2):'—'}</td><td>${r.orp!=null?vfx(r.orp,0):'—'}</td>
+      <td><span class="row-status">Pendiente</span></td>
+      <td><button type="button" class="del-btn" onclick="ctmDelEvento('${origen}','${r.id}')" aria-label="Quitar">✕</button></td>
+    </tr>`).join("") : '';
+
+  return `
+    <div class="ctm-origin ${bandClass}"><span class="ctm-origin-ic">${icon}</span><span>${bandTxt}</span></div>
+    <div class="ctm-panel"><div class="ctm-panel-inner">
+      <h2>${icon} Nuevo registro. ${meta.label}</h2>
+      <p class="ctm-sub">Completa los parámetros medidos. Los campos se iluminan en verde dentro de norma y en rojo fuera de norma. Si un valor está fuera de rango posible (probable error de captura, revisa comas y puntos) el botón de carga se bloquea hasta corregirlo.</p>
+      <div class="ctm-ctx-row">
+        <div class="ctm-fld"><label>Sede</label><select id="ctm_${origen}_sede" onchange="ctmSedeChanged('${origen}')">${sedeOpts}</select></div>
+        <div class="ctm-fld"><label>Piscina</label><select id="ctm_${origen}_piscina">${piscOpts}</select></div>
+        <div class="ctm-fld"><label>Fecha</label><input type="date" id="ctm_${origen}_fecha" value="${iso(hoy)}"></div>
+        <div class="ctm-fld"><label>Responsable</label><input type="text" id="ctm_${origen}_resp" placeholder="Nombre de quien mide"></div>
+      </div>
+      <div class="ctm-param-grid" id="ctm_${origen}_grid">${paramFields}</div>
+      <div class="ctm-actions-row">
+        <div class="ctm-pending-note"><span class="ctm-pending-dot"></span> ${pendCount} registro${pendCount===1?'':'s'} en cola de este dispositivo, pendiente${pendCount===1?'':'s'} de carga</div>
+        <div class="ctm-btn-row">
+          <button type="button" class="ctm-btn-ghost" onclick="ctmAgregarCola('${origen}')">Agregar a la cola</button>
+          <button type="button" class="ctm-btn-primary${isPisc?'':' mk'}" id="ctm${isPisc?'1':'2'}LoadBtn" onclick="ctmEnviarAlSheet('${origen}')">📤 Cargar datos</button>
+        </div>
+        <div class="ctm-block-note" id="ctm_${origen}_block"><span class="ctm-dot"></span> Hay valores fuera de rango posible. Corrige antes de cargar.</div>
+      </div>
+    </div></div>
+    <div class="ctm-panel"><div class="ctm-panel-inner">
+      <div class="ctm-queue-head"><h3>Cola local, pendiente${pendCount===1?'':'s'} de cargar</h3><span class="ctm-queue-count">${pendCount} registro${pendCount===1?'':'s'}</span></div>
+      ${pend.length ? `<div class="tablewrap"><table class="queue" style="width:100%;border-collapse:collapse;font-size:var(--fs-11-5)">
+        <thead><tr><th>Fecha</th><th>Sede</th><th>Piscina</th><th>pH</th><th>Cl. libre</th><th>ORP</th><th>Estado</th><th></th></tr></thead>
+        <tbody>${queueRows}</tbody></table></div>` : `<div class="ctm-queue-empty">Sin registros pendientes en este dispositivo.</div>`}
+      <div id="${origen==='piscinero'?'ctm1SyncMsg':'ctm2SyncMsg'}" class="note" style="display:none"></div>
+    </div></div>`;
+}
+
+/* Actualiza el <select> de Piscina cuando cambia la Sede elegida — mismo
+   patrón de filtrado que ya usa matchPool()/POOLS en el resto de PIMS. */
+function ctmSedeChanged(origen){
+  const sede=document.getElementById(`ctm_${origen}_sede`).value;
+  const f=getLFilt ? getLFilt() : {};
+  const opts=POOLS.filter(p=>poolPassFilter(p,f) && p.sede===sede)
+    .map(p=>`<option value="${p.piscina}">${p.piscina}</option>`).join("");
+  const sel=document.getElementById(`ctm_${origen}_piscina`);
+  if(sel) sel.innerHTML=opts;
+}
+
+/* Evalúa un campo individual: homologa el valor, decide ok/bad/implausible
+   según los rangos de ctmRangos(), y actualiza clase + ícono. */
+function ctmEvaluarCampo(el){
+  const input=el.querySelector('input');
+  const val=ctmHomologar(input.value);
+  const min=parseFloat(el.dataset.min), max=parseFloat(el.dataset.max);
+  const pmin=parseFloat(el.dataset.pmin), pmax=parseFloat(el.dataset.pmax);
+  el.classList.remove('ok','bad','implausible');
+  const ic=el.querySelector('.ctm-status-ic');
+  ic.classList.remove('show');
+  if(val===null) return;
+  ic.classList.add('show');
+  if(val<pmin || val>pmax){ el.classList.add('implausible'); ic.textContent='⚠'; return; }
+  if(val>=min && val<=max){ el.classList.add('ok'); ic.textContent='✓'; }
+  else { el.classList.add('bad'); ic.textContent='✕'; }
+}
+
+/* Revisa todo el grid de un origen; bloquea "Cargar datos" si hay algún
+   campo implausible. Los estados "bad" (fuera de norma pero físicamente
+   válidos) sí permiten cargar — solo advierten visualmente. */
+function ctmEvaluarPanel(origen){
+  const grid=document.getElementById(`ctm_${origen}_grid`);
+  if(!grid) return;
+  const hayImplausible=!!grid.querySelector('.ctm-param.implausible');
+  const btn=document.getElementById(origen==='piscinero'?'ctm1LoadBtn':'ctm2LoadBtn');
+  const note=document.getElementById(`ctm_${origen}_block`);
+  if(btn) btn.disabled=hayImplausible;
+  if(note) note.classList.toggle('show', hayImplausible);
+}
+
+/* Ata los listeners de validación en vivo tras cada render. Se llama desde
+   renderLab() justo después de inyectar ctmRenderPanel() en el DOM. */
+function ctmBindPanel(origen){
+  const grid=document.getElementById(`ctm_${origen}_grid`);
+  if(!grid) return;
+  grid.querySelectorAll('.ctm-param').forEach(function(p){
+    ctmEvaluarCampo(p);
+    p.querySelector('input').addEventListener('input', function(){
+      ctmEvaluarCampo(p);
+      ctmEvaluarPanel(origen);
+    });
+  });
+  ctmEvaluarPanel(origen);
+}
+
+/* Toma los valores actuales del formulario y los agrega a la cola local. */
+function ctmAgregarCola(origen){
+  const g=id=>document.getElementById(id);
+  const grid=document.getElementById(`ctm_${origen}_grid`);
+  if(grid && grid.querySelector('.ctm-param.implausible')){
+    const msg=document.getElementById(origen==='piscinero'?'ctm1SyncMsg':'ctm2SyncMsg');
+    if(msg){ msg.style.display='block'; msg.className='note bad'; msg.innerHTML='⚠ Hay valores fuera de rango posible. Corrige antes de agregar a la cola.'; }
+    return;
+  }
+  const sede=g(`ctm_${origen}_sede`).value, piscina=g(`ctm_${origen}_piscina`).value, fecha=g(`ctm_${origen}_fecha`).value;
+  if(!sede||!piscina||!fecha){
+    const msg=document.getElementById(origen==='piscinero'?'ctm1SyncMsg':'ctm2SyncMsg');
+    if(msg){ msg.style.display='block'; msg.className='note bad'; msg.innerHTML='⚠ Sede, piscina y fecha son obligatorias.'; }
+    return;
+  }
+  const reg={
+    fecha, sede, piscina, responsable:(g(`ctm_${origen}_resp`).value||'').trim(), _ts:Date.now()
+  };
+  CTM_PARAM_ORDER.forEach(k=>{ reg[k]=ctmHomologar(g(`ctm_${origen}_${k}`).value); });
+  const r=ctmAddEvento(origen, reg);
+  if(r.ok){
+    CTM_PARAM_ORDER.forEach(k=>{ const inp=g(`ctm_${origen}_${k}`); if(inp) inp.value=''; });
+    renderLab();
+  }
+}
+
+/* =====================================================================
+   ICO SEPARADO POR ORIGEN — Piscinero vs Lab · Contramuestreo 2 vs Lab
+   ─────────────────────────────────────────────────────────────────────
+   Capa nueva y aditiva: LLAMA a icoClass() (protegida) dos veces, una por
+   cada fuente de contramuestreo, sin modificarla ni tocar evalLab(). El
+   ICO consolidado que ya muestra la pestaña Validación (LAB vs CONTRA)
+   sigue calculándose exactamente igual que hoy — esto es un complemento,
+   no un reemplazo.
+   ===================================================================== */
+function igContraCompare(pool, f){
+  if(!pool || !f) return null;
+  const inR=(l)=> labFechaInRange(l.lf || (l.fecha?{d:l.fecha,isMonthOnly:false}:null), f);
+  const lr=LAB.filter(l=>l.pool===pool && l.fecha && inR(l)).sort((a,b)=>b.fecha-a.fecha);
+  if(!lr.length) return null;
+  const lab=aggLab(lr);
+  function cmpFuente(arr){
+    const cr=arr.filter(c=>c.pool===pool && c.fecha && inR(c)).sort((a,b)=>b.fecha-a.fecha);
+    if(!cr.length) return {n:0, icoVal:null, icoCls:null, icoTxt:'Sin datos'};
+    const contra=aggContra(cr);
+    const diffs=[];
+    LAB_PARAMS.forEach(([key])=>{
+      const a=lab[key], b=contra[key];
+      if(a!=null && b!=null && (a+b)!==0){ diffs.push(Math.abs(a-b)/((a+b)/2)*100); }
+    });
+    const icoVal = diffs.length ? diffs.reduce((s,x)=>s+x,0)/diffs.length : null;
+    const icoB = icoVal==null ? {cls:'nd',txt:'Sin datos comparables'} : icoClass(icoVal, ICO_CRIT);
+    return {n:cr.length, icoVal, icoCls:icoB.cls, icoTxt:icoB.txt};
+  }
+  return {
+    piscinero: cmpFuente(CONTRA),
+    mk: cmpFuente(CONTRA2)
+  };
+}
+
 async function connectRetro(){
   const li=document.getElementById("linkRetro").value.trim();
   lastLinks.retro=li;
@@ -15682,23 +16172,26 @@ const ANCHOR_DEFAULTS={
   ins:   {id:'1QR_GjRKGqd0C3HjfdQXhiGhxr1RzR2LfDzfl6LlgHsY', code:'MOVS',   label:'Salidas ALP (Insumos)',               icon:'📦', kind:'sheet'},
   lab:   {id:'1TwFSQ5lZElaZ3MiXz65-1jDkD4s2n1dz4LPWDo3jvAs', code:'LAB',    label:'Resultados de Laboratorio',           icon:'🧪', kind:'sheet'},
   contra:{id:'1ImG-mf_PIbOfrUkSCgUlyofHIqDzDEcmg4BzvSx3WWk', code:'CONTRA', label:'Contramuestreo',                      icon:'🧫', kind:'sheet'},
+  contra2:{id:'',                                           code:'CONTRA2', label:'Contramuestreo 2 (acompañamiento)',   icon:'🩺', kind:'sheet'},
   infra: {id:'',                                            code:'INFRA',  label:'Activos (Hidráulico/Automatización)', icon:'⚙', kind:'sheet'},
   ot:    {id:'',                                            code:'OT',     label:'Salidas OfficeTrack',                 icon:'🛠', kind:'sheet'},
   retro: {id:'17McaAu4mBMnW0VPRzn7Vi1-vFlW0xScLsDIUuagYr_0', code:'RETRO', label:'Retrolavados y caudales de filtro',   icon:'💧', kind:'sheet'},
   labWebhook:{id:'https://script.google.com/macros/s/AKfycbwQkSvhm1-E6LKKusdscdpKbnRSrqVjf63NKWn20o7L9painKHkSjSnkl2BK9IVSURp/exec',
               code:'MOTOR-LAB', label:'Apps Script — Motor de Extracción Laboratorio', icon:'🔌', kind:'webhook'},
-  retroWebhook:{id:'https://script.google.com/macros/s/AKfycbxpuh29LBKdiWMirVN-rHVXsrLx3zin_IkaUkpIdfA-CbA2_IuQW3C1GCT0oasCn4-8rg/exec', code:'MOTOR-RETRO', label:'Apps Script — Escritura de Retrolavados', icon:'📤', kind:'webhook'}
+  retroWebhook:{id:'https://script.google.com/macros/s/AKfycbxpuh29LBKdiWMirVN-rHVXsrLx3zin_IkaUkpIdfA-CbA2_IuQW3C1GCT0oasCn4-8rg/exec', code:'MOTOR-RETRO', label:'Apps Script — Escritura de Retrolavados', icon:'📤', kind:'webhook'},
+  contra2Webhook:{id:'https://script.google.com/macros/s/AKfycbz4eiUMlAfR19UpqQp_2bJif83BOBGBULo5YLLsgcoEPsun19xFXidXH9-hgr689D7d/exec', code:'MOTOR-CONTRA2', label:'Apps Script — Motor de Contramuestreo (Piscinero + MK)', icon:'🧫', kind:'webhook'}
 };
 /* Metadatos de UI que difieren por webhook (renderAnchoredPanel es generico;
    esto evita hardcodear "Extractor Lab" cuando ya hay un segundo motor). */
 const WEBHOOK_META={
   labWebhook:{usadoPor:'Extractor Lab', emptyMsg:'Aún no se ha configurado el Motor de Extracción de Laboratorio. Pega la URL del Apps Script (termina en <code>/exec</code>) para activarlo.'},
-  retroWebhook:{usadoPor:'Registro de Retrolavados', emptyMsg:'Aún no se ha configurado el Motor de Escritura de Retrolavados. Pega la URL del Apps Script (termina en <code>/exec</code>) para que PIMS pueda escribir en la hoja RETROLAVADO en vez de solo leerla.'}
+  retroWebhook:{usadoPor:'Registro de Retrolavados', emptyMsg:'Aún no se ha configurado el Motor de Escritura de Retrolavados. Pega la URL del Apps Script (termina en <code>/exec</code>) para que PIMS pueda escribir en la hoja RETROLAVADO en vez de solo leerla.'},
+  contra2Webhook:{usadoPor:'Contramuestreo Piscinero / Contramuestreo 2', emptyMsg:'Aún no se ha configurado el Motor de Contramuestreo. Pega la URL del Apps Script (termina en <code>/exec</code>) para poder cargar datos desde las pestañas Contramuestreo Piscinero y Contramuestreo 2.'}
 };
 /* Acceso a los arreglos reales ya existentes en el sistema — sin duplicar estado.
    'labWebhook' no tiene arreglo propio (es un endpoint de escritura, no una
    fuente de lectura CSV) — se omite intencionalmente de este mapa. */
-const ANCHOR_ARRAY_GETTER={ med:()=>MED, ins:()=>MOVS, lab:()=>LAB, contra:()=>CONTRA, infra:()=>INFRA, ot:()=>MOVS_OT,
+const ANCHOR_ARRAY_GETTER={ med:()=>MED, ins:()=>MOVS, lab:()=>LAB, contra:()=>CONTRA, contra2:()=>CONTRA2, infra:()=>INFRA, ot:()=>MOVS_OT,
   retro:()=>Object.values(RETRO_EV).reduce((a,x)=>a.concat(x),[]) };
 
 function pimsAnchorKey(){ return "pis_anchored_sheets_v1__"+pimsStorageScope(); }
