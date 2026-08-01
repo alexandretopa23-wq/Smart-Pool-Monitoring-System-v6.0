@@ -613,8 +613,8 @@ small.hint{color:var(--muted-d);font-size:var(--fs-11)}
 /* ================= PROYECCIÓN DEL MES (cards) ================= */
 .projmes{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:4px 0 6px}
 .pmcard{border-radius:14px;border:1px solid var(--line-d);padding:14px 15px;background:linear-gradient(160deg,#2b2b2b,#1f1f1f);box-shadow:var(--sh-req)}
-.pmcard .pmname{font-size:var(--fs-11);font-weight:700;color:var(--muted-d);text-transform:uppercase;letter-spacing:.4px}
-.pmcard .pmval{font-size:var(--fs-26);font-weight:800;color:var(--acen-2);line-height:1.1;margin-top:5px}
+.pmcard .pmname{font-size:var(--fs-11);font-weight:700;color:var(--muted-d);text-transform:uppercase;letter-spacing:.4px;line-height:1.35;min-height:2.7em;display:flex;align-items:flex-end}
+.pmcard .pmval{font-size:var(--fs-26);font-weight:800;color:var(--acen-2);line-height:1.1;margin-top:8px}
 .pmcard .pmval small{font-size:var(--fs-12);color:var(--muted-d);font-weight:700}
 .pmcard .pmcost{margin-top:9px;border-top:1px dashed var(--line-d);padding-top:9px}
 .pmcard .pmcost .cval{font-size:var(--fs-16);font-weight:800;color:#3ee07f}
@@ -2717,12 +2717,13 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
   box-shadow:var(--v9-sh-float) !important;
 }
 .pmcard::before{
-  content:""; position:absolute; left:0; right:0; top:0; height:38px;
+  content:""; position:absolute; left:0; right:0; top:0; height:46px;
   background:linear-gradient(145deg, rgba(255,123,51,.18), rgba(230,81,0,.05));
   border-bottom:1px solid rgba(255,255,255,.07);
   pointer-events:none;
 }
 .pmcard .pmname{ position:relative; z-index:1; }
+.pmcard .pmval{ position:relative; z-index:1; }
 
 /* ---------- SUBNAVEGACIÓN DE LABORATORIOS (Resumen · Validación ·
    Inteligencia · Microbiología · Tendencias) — mismo tratamiento
@@ -4144,6 +4145,190 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
   .ctm-panel{border-radius:16px}
   .ctm-panel-inner{padding:15px 13px 17px}
 }
+
+/* =====================================================================
+   CONSUMO QUÍMICO — DESCUADRE POR TRAMOS + CALCULADORA RÁPIDA
+   Namespace .tramo-*/.calc-*. 100% aditivo, reutiliza tokens ya existentes
+   (--good/--warn/--bad/--acen/--fs-*), sin definir paleta nueva.
+   ===================================================================== */
+.tramos-wrap{display:flex;flex-direction:column;gap:2px}
+.tramo{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:12px 14px;
+  border-radius:12px;position:relative;min-width:0}
+.tramo::before{content:"";position:absolute;left:16px;top:36px;bottom:-2px;width:2px;background:var(--data-line-soft);z-index:0}
+.tramo:last-child::before{display:none}
+.tramo-dot{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:14px;z-index:1;flex-shrink:0;border:2px solid}
+.tramo-dot.ok{background:rgba(61,220,132,.14);border-color:var(--good);color:var(--good)}
+.tramo-dot.bad{background:rgba(255,107,94,.18);border-color:var(--bad);color:var(--bad)}
+.tramo-body{min-width:0}
+.tramo-rango{font-size:12.5px;font-weight:700;color:#fff}
+.tramo-calc{font-size:10.5px;color:var(--data-muted);margin-top:3px;line-height:1.5}
+.tramo-calc b{color:#cdd1d9}
+.tramo-desc{text-align:right;flex-shrink:0}
+.tramo-desc .dv{font-size:16px;font-weight:800}
+.tramo-desc .dl{font-size:9px;color:var(--data-muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.tramo.bad-row{background:rgba(255,107,94,.06);border:1px solid rgba(255,107,94,.25)}
+.tramo.ok-row{background:transparent}
+@media(max-width:640px){
+  .tramo{grid-template-columns:30px 1fr;grid-template-rows:auto auto}
+  .tramo-desc{grid-column:2;text-align:left;margin-top:6px}
+}
+
+.calc-panel{background:linear-gradient(165deg, rgba(230,81,0,.08), var(--data-3) 55%);
+  border:1px solid rgba(230,81,0,.3)!important}
+.calc-fld label{display:block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--data-muted);margin-bottom:8px}
+.calc-fld select{width:100%;padding:10px 12px;border:1px solid var(--data-line-soft);border-radius:10px;
+  background:var(--data-2);color:#fff;font-size:13px;font-family:inherit}
+.calc-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:16px;align-items:end;margin-top:14px;min-width:0}
+.calc-teorico{background:rgba(0,0,0,.2);border:1px solid var(--data-line-soft);border-radius:12px;padding:14px 16px;min-width:0}
+.calc-teorico .tv{font-size:26px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums}
+.calc-teorico .tu{font-size:12px;color:var(--data-muted);margin-left:4px}
+.calc-teorico .tf{font-size:10px;color:var(--data-muted);margin-top:6px;line-height:1.5}
+.calc-input input{width:100%;padding:13px 14px;border:1px solid var(--data-line-soft);border-radius:12px;
+  background:var(--data-2);color:#fff;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;
+  text-align:center;font-family:inherit}
+.calc-input input:focus{outline:none;border-color:var(--acen)}
+.calc-input input::placeholder{color:#6b6b6b;font-weight:700}
+.calc-eq{font-size:22px;color:var(--data-muted);text-align:center;padding-bottom:14px}
+.calc-result{margin-top:16px;padding:16px 18px;border-radius:12px;display:flex;align-items:center;
+  gap:14px;flex-wrap:wrap;border:1px solid}
+.calc-result.ok{background:rgba(61,220,132,.1);border-color:rgba(61,220,132,.4)}
+.calc-result.adjust{background:rgba(245,167,66,.1);border-color:rgba(245,167,66,.4)}
+.calc-result-txt{font-size:12.5px;line-height:1.5}
+.calc-result-txt b{font-size:15px}
+@media(max-width:760px){
+  .calc-row{grid-template-columns:1fr}
+  .calc-eq{padding:4px 0;text-align:left}
+}
+
+/* =====================================================================
+   GRÁFICAS DE CONSUMO POR PRODUCTO — barras colapsables (pestaña "El consumo")
+   Namespace .prodbar-*/.chart-*/.svg-*. 100% aditivo.
+   ===================================================================== */
+.consgrid{display:flex;flex-direction:column;gap:10px;margin-top:12px;min-width:0}
+.prodbar{border:1px solid var(--data-line-soft);border-radius:14px;overflow:hidden;min-width:0;
+  background:linear-gradient(165deg, var(--data-2) 0%, var(--data-3) 100%)}
+.prodbar-head{padding:13px 15px;display:flex;justify-content:space-between;align-items:center;gap:12px;
+  cursor:pointer;transition:background .18s ease;min-width:0;flex-wrap:wrap}
+.prodbar-head:hover{background:rgba(255,255,255,.04)}
+.prodbar-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 auto}
+.prodbar-chart-ic{width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.06);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#cdd1d9;
+  transition:background .18s ease, color .18s ease}
+.prodbar-head:hover .prodbar-chart-ic{background:rgba(230,81,0,.18);color:#FFB37A}
+.prodbar-nm{font-weight:800;font-size:var(--fs-14-5);color:#fff;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.prodbar-right{display:flex;align-items:center;gap:14px;flex-shrink:0;min-width:0}
+.prodbar-tot{font-size:var(--fs-13);color:#cdd1d9;font-weight:700;white-space:nowrap}
+.prodbar-chev{color:#94A3B8;transition:transform .32s cubic-bezier(.22,.68,0,1.02);flex-shrink:0}
+.prodbar.open .prodbar-chev{transform:rotate(180deg)}
+.prodbar-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s cubic-bezier(.4,0,.2,1)}
+.prodbar.open .prodbar-body{grid-template-rows:1fr}
+.prodbar-body-inner{overflow:hidden;opacity:0;transform:translateY(-6px);padding:0 15px;min-width:0;min-height:0;
+  transition:opacity .22s ease, transform .26s cubic-bezier(.4,0,.2,1), padding .32s cubic-bezier(.4,0,.2,1)}
+.prodbar.open .prodbar-body-inner{opacity:1;transform:translateY(0);padding:6px 15px 15px}
+.chart-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;min-width:0}
+.chart-rango{font-size:11px;color:#cdd1d9;font-weight:600;min-width:0;overflow-wrap:break-word}
+.chart-toolbar-actions{display:flex;gap:8px;flex-shrink:0}
+.card-export-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:7px 13px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);
+  color:#94A3B8;font-size:var(--fs-11);font-weight:700;letter-spacing:.2px;cursor:pointer;white-space:nowrap;
+  transition:background .18s ease, border-color .18s ease, color .18s ease}
+.card-export-btn:hover{background:rgba(230,81,0,.12);border-color:rgba(255,123,51,.4);color:#FFB37A}
+.card-export-btn:disabled{opacity:.6;cursor:wait}
+.chart-legend{display:flex;gap:14px;font-size:var(--fs-9-5);color:#94A3B8;margin-top:6px;flex-wrap:wrap}
+.chart-legend span{display:flex;align-items:center;gap:5px}
+.chart-legend i{width:14px;height:2px;display:inline-block;flex-shrink:0}
+.chart-legend i.dash{background:repeating-linear-gradient(90deg,currentColor 0 4px,transparent 4px 7px)}
+.svg-wrap{position:relative;min-width:0;overflow-x:auto}
+.svg-tooltip{position:absolute;pointer-events:none;background:#0d0d0d;border:1px solid rgba(255,255,255,.15);
+  border-radius:8px;padding:6px 10px;font-size:11px;color:#fff;white-space:nowrap;opacity:0;
+  transform:translate(-50%,-100%);transition:opacity .1s ease;box-shadow:0 6px 16px rgba(0,0,0,.5);z-index:5}
+.svg-tooltip.show{opacity:1}
+.svg-tooltip b{color:#FFB37A}
+.chart-pt{cursor:pointer}
+
+/* =====================================================================
+   RETOQUE FINAL — glass + relieve 3D en gráficas de consumo y calculadora
+   Mismo lenguaje visual que .iecard (perímetro degradado + backdrop-blur),
+   sin tocar ningún cálculo ni dato. Solo presentación.
+   ===================================================================== */
+.prodbar{
+  position:relative;
+  background:linear-gradient(165deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,.015) 100%) padding-box,
+    linear-gradient(135deg, #6B7280 0%, rgba(255,255,255,.06) 25%, rgba(255,255,255,.02) 100%) border-box;
+  border:1px solid transparent;
+  backdrop-filter:blur(14px) saturate(1.12);
+  -webkit-backdrop-filter:blur(14px) saturate(1.12);
+  box-shadow:0 10px 26px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.04);
+  transition:box-shadow .32s cubic-bezier(.22,.68,0,1.02);
+}
+.prodbar.open{
+  box-shadow:0 16px 36px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.prodbar-chart-ic{box-shadow:inset 0 1px 2px rgba(0,0,0,.25), 0 1px 0 rgba(255,255,255,.03)}
+.svg-wrap{
+  background:rgba(0,0,0,.14);
+  border-radius:12px;padding:10px 6px 4px;
+  border:1px solid rgba(255,255,255,.05);
+  box-shadow:inset 0 1px 4px rgba(0,0,0,.3);
+}
+.card-export-btn{box-shadow:0 1px 3px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.03)}
+
+.calc-panel{
+  backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15);
+  box-shadow:0 14px 32px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.calc-teorico{
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.03);
+  background:linear-gradient(165deg, rgba(0,0,0,.24) 0%, rgba(0,0,0,.14) 100%);
+}
+.calc-input input{
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.03);
+  background:linear-gradient(165deg, var(--data-2) 0%, var(--data-3) 100%);
+}
+.calc-input input:focus{
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.35), 0 0 0 3px rgba(230,81,0,.2);
+}
+.calc-result{
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 6px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+/* ---- Responsive real, breakpoints identicos al resto de PIMS (900/760/640/480) ---- */
+@media(max-width:900px){
+  .calc-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .calc-eq{display:none}
+}
+@media(max-width:760px){
+  .prodbar-head{padding:12px 13px}
+  .prodbar-body-inner{padding:6px 13px 13px}
+  .prodbar-nm{font-size:13px;white-space:normal;overflow-wrap:break-word}
+  .prodbar-tot{font-size:11.5px}
+  .chart-toolbar{flex-direction:column;align-items:flex-start}
+  .chart-toolbar-actions{width:100%}
+  .card-export-btn{width:100%}
+  .chart-rango{font-size:10px}
+}
+@media(max-width:640px){
+  .calc-row{grid-template-columns:1fr}
+  .calc-eq{display:none}
+  .calc-teorico .tv{font-size:22px}
+  .calc-input input{font-size:19px}
+}
+@media(max-width:480px){
+  .prodbar-right{gap:8px}
+  .prodbar-tot{font-size:10.5px}
+  .prodbar-chart-ic{width:26px;height:26px}
+  .svg-wrap{padding:8px 4px 2px}
+  .calc-teorico{padding:11px 13px}
+  .calc-teorico .tv{font-size:20px}
+  .calc-teorico .tf{font-size:9px}
+  .calc-input input{font-size:18px;padding:11px 12px}
+  .chart-legend{gap:10px}
+}
 </style>
 </head>
 
@@ -4804,6 +4989,23 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
           </div>
         </div>
 
+        <div class="inf-card" data-cat="inventarios" data-name="salidas por producto excel movimientos usuario sede piscina promedio dia semana">
+          <div class="inf-card-top">
+            <div class="inf-ic">🧴</div>
+            <span class="inf-cat-tag">Inventario</span>
+          </div>
+          <h3>Salidas por producto (Excel)</h3>
+          <p>Detalle completo de las salidas del rango filtrado (misma información que la hoja Movimientos, organizada y con el usuario que cargó cada registro), más tablas de consumo promedio por día, semana, sede y piscina.</p>
+          <div class="inf-meta">
+            <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>10 segundos</span>
+            <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 5h18M3 10h18M3 15h18M3 20h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Excel (.xlsx)</span>
+          </div>
+          <div class="inf-card-foot">
+            <span class="inf-fmt">Según filtro activo en Consumo Químico</span>
+            <button class="inf-gen-btn" id="btnExcelSalidas" onclick="generarExcelSalidasProducto()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 4v12m0 0l-4-4m4 4l4-4M5 20h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Generar</button>
+          </div>
+        </div>
+
         <div class="inf-card" data-cat="laboratorio" data-name="laboratorios pis concordancia contramuestreo representatividad historico irapi ico iro">
           <div class="inf-card-top">
             <div class="inf-ic">🔬</div>
@@ -4939,8 +5141,16 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
           <span class="modhelp-ic">ℹ</span><span>¿Cómo funciona este módulo?</span><span class="modhelp-arrow">↓</span>
         </button>
         <div class="modhelp-panel">
-          <div class="alertbox">Este módulo cuenta la historia del consumo en seis actos encadenados: <b>(1)</b> el periodo y su tipo de días, <b>(2)</b> cuánto se consumió por producto, <b>(3)</b> dónde se concentra y su tendencia, <b>(4)</b> la proyección a fin de mes, <b>(5)</b> la inteligencia de inventarios (descuadre por rango, secuencia de cálculo, causas y confiabilidad) y <b>(6)</b> la trazabilidad OFFICETRACK vs ALP. Todo respeta los filtros de <b>fecha, sede y piscina</b>; el inventario calcula el descuadre como: <b>Control previo al rango + entradas − salidas = teórico esperado</b>, comparado contra el <b>último control físico disponible</b>.</div>
+          <div class="alertbox">Este módulo se organiza en 6 pestañas: <b>Inventario hoy</b> (estado actual de bodega, ignora el filtro), <b>KPIs ejecutivos</b> (descuadre por producto y sede), <b>El consumo</b> (periodo, totales, distribución por sede y proyección a fin de mes), <b>Calculadora de control</b> (para el momento del conteo físico), <b>Inteligencia</b> (inventario cronológico, descuadre por tramos, teórico vs físico, causas probables y perfil de producto) y <b>Trazabilidad</b> (conciliación OFFICETRACK vs ALP). Todo respeta los filtros de <b>fecha, sede y piscina</b> salvo donde se indique lo contrario.</div>
         </div>
+      </div>
+      <div id="consSubnav" class="labsubnav" style="display:flex">
+        <button class="lst on" data-tab="hoy" onclick="setConsTab('hoy')"><span class="lst-ic">&#x1F4CD;</span><span>Inventario hoy<span class="lst-sub">Estado actual</span></span></button>
+        <button class="lst" data-tab="kpis" onclick="setConsTab('kpis')"><span class="lst-ic">&#x1F4CA;</span><span>KPIs ejecutivos<span class="lst-sub">Descuadre por producto</span></span></button>
+        <button class="lst" data-tab="consumo" onclick="setConsTab('consumo')"><span class="lst-ic">&#x1F9EA;</span><span>El consumo<span class="lst-sub">Periodo &middot; distribuci&#xF3;n &middot; proyecci&#xF3;n</span></span></button>
+        <button class="lst" data-tab="calc" onclick="setConsTab('calc')"><span class="lst-ic">&#x1F9EE;</span><span>Calculadora de control<span class="lst-sub">Conteo f&#xED;sico</span></span></button>
+        <button class="lst" data-tab="intel" onclick="setConsTab('intel')"><span class="lst-ic">&#x1F9E0;</span><span>Inteligencia<span class="lst-sub">Tramos &middot; causas &middot; perfil</span></span></button>
+        <button class="lst" data-tab="traza" onclick="setConsTab('traza')"><span class="lst-ic">&#x1F517;</span><span>Trazabilidad<span class="lst-sub">OFFICETRACK vs ALP</span></span></button>
       </div>
       <div id="consumo"></div>
     </div>
@@ -9572,6 +9782,195 @@ function invTimelineHTML(events){
 }
 
 /* ---- Render principal del submódulo ---- */
+/* =====================================================================
+   INVENTARIO HOY / CRONOLÓGICO / POR TRAMOS — capa 100% aditiva
+   ─────────────────────────────────────────────────────────────────────
+   No modifica inventarioIntel() ni ninguna de las 16 funciones protegidas.
+   Lee MOVS directamente (mismo origen que inventarioIntel) y construye
+   tres vistas complementarias:
+   1. invHoy()          — último control físico + E/S posteriores, IGNORA
+                           el filtro de Marco Analítico por diseño.
+   2. invCronologico(f) — mismo cálculo, anclado al último control EN o
+                           ANTES del "hasta" del filtro (navegable por mes).
+   3. invTramos(f)      — descuadre tramo a tramo entre controles
+                           consecutivos, cada tramo aislado de los demás
+                           (nunca se corre hacia atrás al cambiar el filtro).
+   ===================================================================== */
+function invHoy(){
+  const base = MOVS.filter(m=>(m.tipo==='SALIDA'||m.tipo==='ENTRADA'||m.tipo==='CONTROL') && m.fecha && m.cant!=null);
+  const groups={};
+  base.sort((a,b)=>a.fecha-b.fecha).forEach(m=>{
+    const s=invSedeOf(m), k=s+'|'+m.prod;
+    if(!INV_LBL[m.prod]) return;
+    (groups[k]||(groups[k]={key:k,sede:s,prod:m.prod,label:INV_LBL[m.prod],unit:INV_UNIT[m.prod],mv:[]})).mv.push(m);
+  });
+  const hoy = new Date();
+  const productos = Object.values(groups).map(g=>{
+    const controles = g.mv.filter(m=>m.tipo==='CONTROL');
+    const ultCtrl = controles.length? controles[controles.length-1] : null;
+    if(!ultCtrl) return {...g, sinControl:true};
+    const despues = m => m.fecha > ultCtrl.fecha;
+    const entradas = g.mv.filter(m=>m.tipo==='ENTRADA' && despues(m)).reduce((a,m)=>a+m.cant,0);
+    const salidas  = g.mv.filter(m=>m.tipo==='SALIDA'  && despues(m)).reduce((a,m)=>a+m.cant,0);
+    const teorico = ultCtrl.cant + entradas - salidas;
+    const diasSinControl = Math.max(0, Math.round((hoy-ultCtrl.fecha)/86400000));
+    return {
+      key:g.key, sede:g.sede, prod:g.prod, label:g.label, unit:g.unit,
+      ultCtrlFecha:ultCtrl.fecha, ultCtrlCant:ultCtrl.cant,
+      entradas, salidas, teorico, diasSinControl, sinControl:false
+    };
+  }).filter(p=>!p.sinControl);
+  return {productos, hasData:productos.length>0};
+}
+function invCronologico(f){
+  const cutoff = f.hasta? new Date(f.hasta.getFullYear(),f.hasta.getMonth(),f.hasta.getDate(),23,59,59,999) : null;
+  const base = MOVS.filter(m=>(m.tipo==='SALIDA'||m.tipo==='ENTRADA'||m.tipo==='CONTROL') && m.fecha && m.cant!=null && (!cutoff || m.fecha<=cutoff));
+  const groups={};
+  base.sort((a,b)=>a.fecha-b.fecha).forEach(m=>{
+    const s=invSedeOf(m), k=s+'|'+m.prod;
+    if(!INV_LBL[m.prod]) return;
+    (groups[k]||(groups[k]={key:k,sede:s,prod:m.prod,label:INV_LBL[m.prod],unit:INV_UNIT[m.prod],mv:[]})).mv.push(m);
+  });
+  const productos = Object.values(groups).map(g=>{
+    const controles = g.mv.filter(m=>m.tipo==='CONTROL');
+    const ultCtrl = controles.length? controles[controles.length-1] : null;
+    if(!ultCtrl) return {...g, sinControl:true};
+    const despues = m => m.fecha > ultCtrl.fecha;
+    const entradas = g.mv.filter(m=>m.tipo==='ENTRADA' && despues(m)).reduce((a,m)=>a+m.cant,0);
+    const salidas  = g.mv.filter(m=>m.tipo==='SALIDA'  && despues(m)).reduce((a,m)=>a+m.cant,0);
+    const teorico = ultCtrl.cant + entradas - salidas;
+    const todosControles = MOVS.filter(m=>m.tipo==='CONTROL' && m.fecha && m.cant!=null && invSedeOf(m)===g.sede && m.prod===g.prod).sort((a,b)=>a.fecha-b.fecha);
+    const siguiente = todosControles.find(m=>m.fecha>ultCtrl.fecha) || null;
+    return {
+      key:g.key, sede:g.sede, prod:g.prod, label:g.label, unit:g.unit,
+      anclaFecha:ultCtrl.fecha, anclaCant:ultCtrl.cant,
+      entradas, salidas, teorico, siguienteCtrl:siguiente, sinControl:false
+    };
+  }).filter(p=>!p.sinControl);
+  return {productos, hasData:productos.length>0};
+}
+function invTramos(f){
+  const passSede = m => !f.sede || invSedeOf(m)===f.sede;
+  const base = MOVS.filter(m=>(m.tipo==='SALIDA'||m.tipo==='ENTRADA'||m.tipo==='CONTROL') && m.fecha && m.cant!=null && passSede(m));
+  const groups={};
+  base.sort((a,b)=>a.fecha-b.fecha).forEach(m=>{
+    const s=invSedeOf(m), k=s+'|'+m.prod;
+    if(!INV_LBL[m.prod]) return;
+    (groups[k]||(groups[k]={key:k,sede:s,prod:m.prod,label:INV_LBL[m.prod],unit:INV_UNIT[m.prod],mv:[]})).mv.push(m);
+  });
+  const productos = Object.values(groups).map(g=>{
+    const controles = g.mv.filter(m=>m.tipo==='CONTROL').sort((a,b)=>a.fecha-b.fecha);
+    const tramos=[];
+    for(let i=1;i<controles.length;i++){
+      const a=controles[i-1], b=controles[i];
+      const entreAB = m => m.fecha>a.fecha && m.fecha<=b.fecha;
+      const entradas = g.mv.filter(m=>m.tipo==='ENTRADA' && entreAB(m)).reduce((s,m)=>s+m.cant,0);
+      const salidas  = g.mv.filter(m=>m.tipo==='SALIDA'  && entreAB(m)).reduce((s,m)=>s+m.cant,0);
+      const teorico = a.cant + entradas - salidas;
+      const desc = b.cant - teorico;
+      const tol = invTol(teorico, b.cant);
+      tramos.push({desde:a.fecha, hasta:b.fecha, ctrlInicial:a.cant, ctrlFinal:b.cant, entradas, salidas, teorico, desc, ok:Math.abs(desc)<=tol});
+    }
+    return {key:g.key, sede:g.sede, prod:g.prod, label:g.label, unit:g.unit, tramos};
+  }).filter(p=>p.tramos.length>0);
+  return {productos, hasData:productos.some(p=>p.tramos.length>0)};
+}
+
+/* ---- Calculadora rápida de control (solo lectura, no escribe al sistema) ---- */
+function invCalcHTML(){
+  const IH = invHoy();
+  if(!IH.hasData) return `<div class="panel"><div class="alertbox">No hay controles físicos registrados todavía — la calculadora necesita al menos un control por producto para tener un punto de partida.</div></div>`;
+  const prodSedeCount={}; IH.productos.forEach(p=>{ prodSedeCount[p.prod]=(prodSedeCount[p.prod]||0)+1; });
+  const opts = IH.productos.map(p=>{
+    const tag = prodSedeCount[p.prod]>1? ` — ${p.sede}`:'';
+    return `<option value="${p.key}" data-teorico="${p.teorico}" data-unit="${p.unit}" data-ultctrl="${v(p.ultCtrlCant,1)}" data-ultfecha="${fmtFecha(p.ultCtrlFecha)}" data-ent="${v(p.entradas,1)}" data-sal="${v(p.salidas,1)}">${p.label}${tag}</option>`;
+  }).join('');
+  const first = IH.productos[0];
+  return `<div class="panel calc-panel">
+    <h2>🧮 Calculadora rápida de control <span class="small">para usar en el momento del conteo físico</span></h2>
+    <p class="note" style="margin:0">Selecciona el producto y sede, y escribe el conteo físico que acabas de hacer. Se compara al instante contra el inventario teórico de hoy. Esta calculadora no registra el control en el sistema — la carga de datos se hace desde la app de campo.</p>
+    <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-top:16px;max-width:360px">
+      <div class="calc-fld"><label>Producto</label><select id="invCalcProd" onchange="invCalcRecalc()">${opts}</select></div>
+    </div>
+    <div class="calc-row">
+      <div class="calc-teorico">
+        <div><span class="tv" id="invCalcTeoricoVal">${v(first.teorico,1)}</span><span class="tu" id="invCalcUnit">${first.unit} esperados hoy</span></div>
+        <div class="tf" id="invCalcDetalle">Último control ${v(first.ultCtrlCant,1)} ${first.unit} (${fmtFecha(first.ultCtrlFecha)}) + entradas ${v(first.entradas,1)} ${first.unit} − salidas ${v(first.salidas,1)} ${first.unit} desde entonces</div>
+      </div>
+      <div class="calc-eq">=</div>
+      <div class="calc-fld calc-input"><label>Tu conteo físico</label><input type="text" inputmode="decimal" id="invCalcFisico" placeholder="Ej: 82,0" oninput="invCalcRecalc()"></div>
+    </div>
+    <div class="calc-result adjust" id="invCalcResult"><div class="calc-result-txt" id="invCalcResultTxt">Escribe tu conteo físico para ver la diferencia.</div></div>
+  </div>`;
+}
+function invCalcHomologar(v){
+  if(v===null||v===undefined) return null;
+  let t=v.toString().trim(); if(t==="") return null;
+  t=t.replace(/[^0-9.,\-]/g,""); if(t===""||t==="-") return null;
+  const c=t.lastIndexOf(","), d=t.lastIndexOf(".");
+  if(c!==-1&&d!==-1){ t = c>d? t.replace(/\./g,"").replace(",","."):t.replace(/,/g,""); }
+  else if(c!==-1){ t=t.replace(/,/g,"."); }
+  const n=parseFloat(t);
+  return isFinite(n)?n:null;
+}
+function invCalcRecalc(){
+  const sel=document.getElementById('invCalcProd'); if(!sel) return;
+  const opt=sel.selectedOptions[0];
+  const teorico=parseFloat(opt.dataset.teorico), unit=opt.dataset.unit;
+  document.getElementById('invCalcTeoricoVal').textContent=v(teorico,1);
+  document.getElementById('invCalcUnit').textContent=unit+' esperados hoy';
+  document.getElementById('invCalcDetalle').textContent=
+    `Último control ${opt.dataset.ultctrl} ${unit} (${opt.dataset.ultfecha}) + entradas ${opt.dataset.ent} ${unit} − salidas ${opt.dataset.sal} ${unit} desde entonces`;
+  const input=document.getElementById('invCalcFisico');
+  const box=document.getElementById('invCalcResult'), txt=document.getElementById('invCalcResultTxt');
+  const fisico=invCalcHomologar(input.value);
+  if(fisico===null){ box.className='calc-result adjust'; txt.innerHTML='Escribe tu conteo físico para ver la diferencia.'; return; }
+  const diff=fisico-teorico, absDiff=Math.abs(diff), cuadra=absDiff<0.5;
+  if(cuadra){ box.className='calc-result ok'; txt.innerHTML=`Diferencia: <b style="color:var(--good)">${diff===0?'0,0':(diff>0?'+':'−')}${v(absDiff,1)} ${unit}</b><br>Tu conteo coincide con el teórico esperado. No hace falta ajustar nada.`; }
+  else if(diff<0){ box.className='calc-result adjust'; txt.innerHTML=`Diferencia: <b style="color:var(--warn)">−${v(absDiff,1)} ${unit}</b><br>Tu conteo es menor al esperado. Puede haber una salida sin registrar, o el producto real es menos del teórico.`; }
+  else { box.className='calc-result adjust'; txt.innerHTML=`Diferencia: <b style="color:#8AC4F0">+${v(absDiff,1)} ${unit}</b><br>Tu conteo es mayor al esperado. Puede haber una entrada sin registrar, o el producto real es más del teórico.`; }
+}
+
+/* ---- Sub-render: pestaña "Inventario hoy" ---- */
+function renderConsHoy(){
+  const IH = invHoy();
+  if(!IH.hasData) return `<div class="panel"><div class="alertbox">No hay controles físicos registrados todavía en ninguna sede/producto. Registra al menos un control para activar esta vista.</div></div>`;
+  const fmtHoyFecha = fmtFecha(new Date());
+  const prodSedeCountH={}; IH.productos.forEach(p=>{ prodSedeCountH[p.prod]=(prodSedeCountH[p.prod]||0)+1; });
+  const tagSedeH = p => prodSedeCountH[p.prod]>1? ` · ${p.sede}` : '';
+  let cardsHoy='';
+  IH.productos.slice().sort((a,b)=>b.diasSinControl-a.diasSinControl).forEach(p=>{
+    const diasTxt = p.diasSinControl===0? 'Control de hoy' : `${p.diasSinControl} día${p.diasSinControl===1?'':'s'} sin control`;
+    const diasWarn = p.diasSinControl>=14? ` <span style="color:var(--warn)">⚠ dato menos confiable</span>` : '';
+    cardsHoy+=`<div class="iecard ${p.diasSinControl>=14?'warn':'good'}">
+      <div class="ie-h"><span class="ie-nm">${p.label}${tagSedeH(p)}</span></div>
+      <div class="ie-kpis">
+        <div class="ie-k ie-k-wide">
+          <span class="ie-kk">Inventario teórico hoy</span>
+          <span class="ie-kv" style="color:${p.diasSinControl>=14?'var(--warn)':'var(--good)'}">${v(p.teorico,1)} ${p.unit}</span>
+          <span class="ie-kf">Último control físico: <b>${v(p.ultCtrlCant,1)} ${p.unit}</b> el ${fmtFecha(p.ultCtrlFecha)}${diasWarn}</span>
+        </div>
+        <div class="ie-k"><span class="ie-kk">Desde el último control</span>
+          <div class="ie-esf">
+            <div class="ie-esf-row"><span class="ie-esf-lbl">E</span><span class="ie-esf-val">+${v(p.entradas,1)} <small>${p.unit}</small></span></div>
+            <div class="ie-esf-row"><span class="ie-esf-lbl">S</span><span class="ie-esf-val">−${v(p.salidas,1)} <small>${p.unit}</small></span></div>
+          </div>
+        </div>
+        <div class="ie-k"><span class="ie-kk">Días sin control</span><span class="ie-kv" style="font-size:19px">${p.diasSinControl}</span><span class="ie-kf">${diasTxt}</span></div>
+      </div>
+    </div>`;
+  });
+  return sectionDivider("1","Inventario hoy","¿cómo está la bodega en este momento?")
+    +`<div class="panel"><h2>Inventario hoy <span class="small">último control físico + entradas − salidas desde ese control · ${fmtHoyFecha}</span></h2>
+    <div class="note" style="margin-bottom:12px">Esta vista ignora el filtro de Marco Analítico: siempre usa el último control físico registrado en el sistema, para reflejar el estado actual de la bodega sin importar qué rango tengas seleccionado arriba.</div>
+    <div class="invexec">${cardsHoy}</div></div>`;
+}
+
+/* ---- Sub-render: pestaña "Calculadora de control" ---- */
+function renderConsCalc(){
+  return sectionDivider("4","La calculadora","¿cuánto ajustar según el conteo que acabo de hacer?") + invCalcHTML();
+}
+
 function renderInvIntel(f){
   const I=inventarioIntel(f);
   if(!I.hasData){
@@ -9677,6 +10076,82 @@ function renderInvIntel(f){
     <div class="invexec">${execCards||'<div class="note">Sin productos con movimientos en el rango.</div>'}</div>
     ${cmpStrip}
     <div class="note" style="margin-top:8px"><b>Cómo se calcula el Descuadre actual:</b> Se toma como punto de partida el <b>último control físico previo al inicio del rango filtrado</b> (ancla). A ese valor se suman las <b>entradas registradas desde la ancla hasta el "hasta"</b> y se restan las <b>salidas del mismo tramo</b>, obteniendo el <b>teórico esperado</b>. El descuadre es la diferencia entre el <b>último control físico disponible</b> y ese teórico esperado. Si no hay entradas en el rango filtrado, se indica la última entrada anterior y cuántas salidas debieron registrarse para cuadrar; esto permite revisar en otro rango de fechas dónde pudo estar la salida faltante, sobrante o la entrada no realizada. La <b>clasificación de exactitud</b> se basa en la magnitud absoluta del descuadre: <b>Exacto</b> ≤2 kg (o litros) · <b>Descuadre leve</b> 2–20 · <b>Moderado</b> 20–40 · <b>Grave</b> 40–80 · <b>Crítico</b> &gt;80. El porcentaje del indicador circular se interpola linealmente: 0=100%, 2=90%, 20=80%, 40=60%, 80=40%, &gt;80=0%. El <b>Proyectado continuo</b> (entradas − salidas sin reinicio histórico) <b>no se modifica</b>: es referencia para conteos extraordinarios.</div></div>`;
+  return html;
+}
+
+/* ---- Sub-render: pestaña "Inteligencia" ----
+   Agrupa: inventario cronológico + descuadre por tramos + teórico vs físico
+   (gráfico) + detector de causas probables + perfil de producto + insights.
+   Reutiliza I=inventarioIntel(f) (protegida, sin modificar) para el gráfico/
+   causas/perfil — exactamente el mismo cálculo que antes, solo reubicado. */
+function renderConsIntel(f){
+  const I=inventarioIntel(f);
+  if(!I.hasData) return sectionDivider("5","La inteligencia","¿qué explica los descuadres y cómo evolucionan?")
+    +`<div class="panel"><div class="alertbox">No hay movimientos de inventario en el rango filtrado para analizar.</div></div>`;
+  let html=sectionDivider("5","La inteligencia","¿qué explica los descuadres y cómo evolucionan?");
+  const prodSedeCount={}; I.productos.forEach(p=>{ prodSedeCount[p.prod]=(prodSedeCount[p.prod]||0)+1; });
+  const tagSede = p => prodSedeCount[p.prod]>1? ` · ${p.sede}` : '';
+
+  /* ---------- Inventario cronológico ---------- */
+  const IC = invCronologico(f);
+  if(IC.hasData){
+    const prodSedeCountC={}; IC.productos.forEach(p=>{ prodSedeCountC[p.prod]=(prodSedeCountC[p.prod]||0)+1; });
+    const tagSedeC = p => prodSedeCountC[p.prod]>1? ` · ${p.sede}` : '';
+    let cardsCron='';
+    IC.productos.forEach(p=>{
+      const sigTxt = p.siguienteCtrl
+        ? `${v(p.siguienteCtrl.cant,1)} ${p.unit} físico · tramo ${Math.abs(p.siguienteCtrl.cant-p.teorico)<=invTol(p.teorico,p.siguienteCtrl.cant)?'cuadró':'no cuadró'}`
+        : 'sin control posterior registrado';
+      cardsCron+=`<div class="iecard good">
+        <div class="ie-h"><span class="ie-nm">${p.label}${tagSedeC(p)}</span></div>
+        <div class="ie-kpis">
+          <div class="ie-k ie-k-wide">
+            <span class="ie-kk">Inventario teórico al ${f.hasta?fmtFecha(f.hasta):fmtFecha(new Date())}</span>
+            <span class="ie-kv" style="color:var(--good)">${v(p.teorico,1)} ${p.unit}</span>
+            <span class="ie-kf">Ancla: control del ${fmtFecha(p.anclaFecha)} (<b>${v(p.anclaCant,1)} ${p.unit}</b>)</span>
+          </div>
+          <div class="ie-k"><span class="ie-kk">Desde el control ancla</span>
+            <div class="ie-esf">
+              <div class="ie-esf-row"><span class="ie-esf-lbl">E</span><span class="ie-esf-val">+${v(p.entradas,1)} <small>${p.unit}</small></span></div>
+              <div class="ie-esf-row"><span class="ie-esf-lbl">S</span><span class="ie-esf-val">−${v(p.salidas,1)} <small>${p.unit}</small></span></div>
+            </div>
+          </div>
+          <div class="ie-k"><span class="ie-kk">Próximo control</span><span class="ie-kv" style="font-size:15px">${p.siguienteCtrl?fmtFecha(p.siguienteCtrl.fecha):'—'}</span><span class="ie-kf">${sigTxt}</span></div>
+        </div>
+      </div>`;
+    });
+    html+=`<div class="panel"><h2>Inventario cronológico <span class="small">mismo cálculo, anclado al control vigente en el rango filtrado</span></h2>
+      <div class="note" style="margin-bottom:12px">Mueve el Marco Analítico a cualquier fecha "hasta" para ver cómo estaba el inventario en ese momento — a diferencia de "Inventario hoy" (que siempre usa el último control real), esta vista respeta el filtro.</div>
+      <div class="invexec">${cardsCron}</div></div>`;
+  }
+
+  /* ---------- Descuadre por tramos ---------- */
+  const IT = invTramos(f);
+  if(IT.hasData){
+    let tramosHtml='';
+    IT.productos.forEach(p=>{
+      const prodSedeCountT = IT.productos.filter(x=>x.prod===p.prod).length;
+      const tagT = prodSedeCountT>1? ` · ${p.sede}` : '';
+      const filas = p.tramos.map(t=>{
+        const cls = t.ok? 'ok-row':'bad-row', dotCls = t.ok? 'ok':'bad', ic = t.ok? '✓':'✕';
+        const dcol = t.ok? 'var(--good)' : 'var(--bad)', dlbl = t.ok? 'cuadra' : 'aquí está el problema';
+        return `<div class="tramo ${cls}">
+          <div class="tramo-dot ${dotCls}">${ic}</div>
+          <div class="tramo-body"><div class="tramo-rango">${fmtFecha(t.desde)} → ${fmtFecha(t.hasta)}</div>
+            <div class="tramo-calc">Control inicial <b>${v(t.ctrlInicial,1)} ${p.unit}</b> + entradas <b>${v(t.entradas,1)} ${p.unit}</b> − salidas <b>${v(t.salidas,1)} ${p.unit}</b> = teórico <b>${v(t.teorico,1)} ${p.unit}</b> · físico registrado <b>${v(t.ctrlFinal,1)} ${p.unit}</b></div></div>
+          <div class="tramo-desc"><div class="dv" style="color:${dcol}">${t.desc>0?'+':(t.desc<0?'−':'')}${v(Math.abs(t.desc),1)} ${p.unit}</div><div class="dl">${dlbl}</div></div>
+        </div>`;
+      }).join('');
+      const hayProblema = p.tramos.some(t=>!t.ok);
+      tramosHtml+=`<div class="panel" style="margin-top:12px"><h3 style="margin:0 0 4px;font-size:13px;color:#fff">${p.label}${tagT}</h3>
+        <div class="tramos-wrap">${filas}</div>
+        ${!hayProblema?'<div class="note" style="margin-top:8px">Todos los tramos cuadran dentro de la tolerancia (±5% o ±1 unidad).</div>':''}
+      </div>`;
+    });
+    html+=`<div class="panel"><h2>Descuadre por tramos <span class="small">cada tramo entre dos controles consecutivos se evalúa de forma aislada</span></h2>
+      <div class="note" style="margin-bottom:4px">A diferencia del <b>Descuadre actual</b> (que arrastra el error desde el origen del histórico), aquí cada control físico reinicia el cálculo. Si un tramo específico no cuadra, el problema está exactamente ahí — no se corre hacia atrás cuando cambias el filtro.</div>
+      ${tramosHtml}</div>`;
+  }
 
   /* ---------- Inventario teórico vs físico (gráfico) ---------- */
   const conSerie=I.productos.filter(p=>p.series.length>=2);
@@ -9801,21 +10276,198 @@ function sectionDivider(num,titulo,pregunta){
   return `<div class="actdiv"><div class="act-n">${num}</div><div class="act-tx"><div class="act-t">${titulo}</div><div class="act-q">${pregunta}</div></div></div>`;
 }
 
-function renderConsumo(){
-  const f=getFilt();
-  const cont=document.getElementById("consumo");
+/* ---- Sub-render: pestaña "El consumo" ----
+   Fusiona en UN SOLO panel narrativo: periodo filtrado, consumo total por
+   producto + participación, distribución por sede (con tendencia vs periodo
+   anterior) y proyección a fin de mes. Mismo cálculo exacto que antes, solo
+   reunido en un panel continuo en vez de 4 separados. */
+/* =====================================================================
+   GRÁFICAS DE CONSUMO POR PRODUCTO — pestaña "El consumo"
+   ─────────────────────────────────────────────────────────────────────
+   Barra horizontal colapsable por producto (mismo total ya mostrado en
+   los KPIs existentes), con ícono de gráfica que abre/cierra un SVG
+   interactivo: grid sutil, ejes con valores, línea de tendencia punteada
+   (regresión lineal), tooltip por punto. Todas las gráficas pueden estar
+   abiertas al mismo tiempo (para comparar tratamiento en conjunto).
+
+   Resolución temporal automática según el tamaño del rango filtrado:
+     ≤31 días   -> diaria
+     32-93 días -> semanal (acumulado = suma, no promedio)
+     94-186 días-> quincenal (acumulado)
+     >186 días  -> mensual (acumulado)
+   No depende de que el usuario elija nada: se recalcula solo al cambiar
+   el Marco Analítico. 100% aditivo: lee MOVS vía consumoRango(f), que ya
+   existe y no se modifica.
+   ===================================================================== */
+function consResolucion(diasRango){
+  if(diasRango<=31) return 'diario';
+  if(diasRango<=93) return 'semanal';
+  if(diasRango<=186) return 'quincenal';
+  return 'mensual';
+}
+const CONS_RES_LABEL={diario:'Diaria',semanal:'Semanal (acumulado)',quincenal:'Quincenal (acumulado)',mensual:'Mensual (acumulado)'};
+
+/* Agrupa los movimientos de un producto por bucket según la resolución,
+   sumando cantidades (nunca promediando) dentro de cada bucket. */
+function consBucketize(movsProd, f, resolucion){
+  const buckets={}; // key -> {label, orden, valor}
+  const mesesCorto=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  movsProd.forEach(m=>{
+    let key, label;
+    if(resolucion==='diario'){
+      key=ymd(m.fecha);
+      label=m.fecha.getDate()+' '+mesesCorto[m.fecha.getMonth()];
+    } else if(resolucion==='semanal'){
+      const base=f.desde||m.fecha;
+      const semIdx=Math.floor((m.fecha-base)/(7*86400000));
+      key='S'+semIdx;
+      label='Sem '+(semIdx+1);
+    } else if(resolucion==='quincenal'){
+      const q=m.fecha.getDate()<=15?1:2;
+      key=m.fecha.getFullYear()+'-'+m.fecha.getMonth()+'-Q'+q;
+      label='Q'+q+' '+mesesCorto[m.fecha.getMonth()];
+    } else {
+      key=m.fecha.getFullYear()+'-'+m.fecha.getMonth();
+      label=mesesCorto[m.fecha.getMonth()].charAt(0).toUpperCase()+mesesCorto[m.fecha.getMonth()].slice(1);
+    }
+    if(!buckets[key]) buckets[key]={label, orden:m.fecha.getTime(), valor:0};
+    buckets[key].valor+=m.cant;
+  });
+  return Object.values(buckets).sort((a,b)=>a.orden-b.orden);
+}
+
+/* Regresión lineal simple (mínimos cuadrados) para la línea de tendencia. */
+function consLinReg(vals){
+  const n=vals.length, xs=vals.map((_,i)=>i);
+  const sx=xs.reduce((a,b)=>a+b,0), sy=vals.reduce((a,b)=>a+b,0);
+  const sxy=xs.reduce((a,x,i)=>a+x*vals[i],0), sxx=xs.reduce((a,x)=>a+x*x,0);
+  const denom=(n*sxx-sx*sx)||1;
+  const m=(n*sxy-sx*sy)/denom, b=(sy-m*sx)/n;
+  return xs.map(x=>m*x+b);
+}
+
+const CONS_PROD_COLOR={pulsar:'#2980B9',bisulfato:'#16A085',bicarbonato:'#8E44AD',hipoclorito_sodio:'#E67E22',floculante:'#2E9E5B'};
+let CONS_OPEN_CHARTS=new Set();
+/* Toggle puramente visual (mismo patrón que toggleSeqCalc/toggleModHelp):
+   alterna la clase "open" sobre la tarjeta ya presente en el DOM. El SVG
+   ya está construido de antemano por consBarrasHTML() (ver nota ahí), así
+   que no hace falta volver a renderizar nada — evita el parpadeo de toda
+   la pestaña que causaba el renderConsumo() anterior. */
+function toggleConsChart(btn){
+  const wrap=btn.closest('.prodbar');
+  if(!wrap) return;
+  const key=wrap.dataset.prod;
+  const open=wrap.classList.toggle('open');
+  if(open) CONS_OPEN_CHARTS.add(key); else CONS_OPEN_CHARTS.delete(key);
+}
+
+/* Construye las barras + gráficas de todos los productos con consumo>0 en
+   el rango. movs = consumoRango(f).movs (ya filtrado). */
+function consBarrasHTML(f, prods, tot, movs){
+  const activos = prods.filter(p=>(tot[p[0]]||0)>0);
+  if(!activos.length) return '';
+  const diasRango = (f.desde&&f.hasta)? Math.max(1,Math.round((f.hasta-f.desde)/86400000)+1) : null;
+  const resolucion = diasRango? consResolucion(diasRango) : 'diario';
+  const rangoTxt = (f.desde&&f.hasta)? `${fmtFecha(f.desde)} – ${fmtFecha(f.hasta)} · Marco Analítico` : 'Marco Analítico sin rango completo';
+
+  let bars='';
+  activos.forEach(p=>{
+    const key=p[0], color=CONS_PROD_COLOR[key]||'#2980B9';
+    const isOpen=CONS_OPEN_CHARTS.has(key);
+    const movsProd=movs.filter(m=>m.prod===key);
+    const buckets=consBucketize(movsProd,f,resolucion);
+    const unit=key==='floculante'?'L':'kg';
+
+    /* El gráfico se construye SIEMPRE (esté abierta o cerrada la tarjeta),
+       no solo cuando isOpen. Así toggleConsChart() puede ser un toggle
+       puramente visual (alternar una clase CSS, igual que toggleSeqCalc/
+       toggleModHelp) sin volver a llamar a renderConsumo() ni reconstruir
+       el HTML del módulo — eso era lo que causaba el parpadeo de toda la
+       pestaña al abrir una sola tarjeta. */
+    let chartHtml='';
+    if(buckets.length){
+      const vals=buckets.map(b=>b.valor);
+      const trend=consLinReg(vals);
+      const W=680,H=220,pl=42,pr=16,pt=14,pb=32,iw=W-pl-pr,ih=H-pt-pb;
+      let mn=Math.min(...vals,...trend), mx=Math.max(...vals,...trend);
+      if(mn===mx){ mn-=1; mx+=1; } const pad=(mx-mn)*0.15; mn=Math.max(0,mn-pad); mx=mx+pad;
+      const X=i=>pl+(buckets.length>1?(i/(buckets.length-1))*iw:iw/2);
+      const Y=val=>pt+ih-((val-mn)/(mx-mn))*ih;
+      let grid='',ylabels='';
+      for(let i=0;i<=4;i++){ const val=mn+(mx-mn)*i/4, yy=Y(val);
+        grid+=`<line x1="${pl}" y1="${yy.toFixed(1)}" x2="${W-pr}" y2="${yy.toFixed(1)}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>`;
+        ylabels+=`<text x="${pl-8}" y="${(yy+3).toFixed(1)}" text-anchor="end" font-size="9" fill="#94A3B8">${val.toFixed(1)}</text>`; }
+      grid+=`<line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ih}" stroke="rgba(255,255,255,.1)" stroke-width="1"/>`;
+      grid+=`<line x1="${pl}" y1="${pt+ih}" x2="${W-pr}" y2="${pt+ih}" stroke="rgba(255,255,255,.1)" stroke-width="1"/>`;
+      const trendLine=trend.map((val,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(val).toFixed(1)).join(' ');
+      const realLine=buckets.map((b,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(b.valor).toFixed(1)).join(' ');
+      let dots='',xlabels='';
+      buckets.forEach((b,i)=>{
+        dots+=`<circle class="chart-pt" cx="${X(i).toFixed(1)}" cy="${Y(b.valor).toFixed(1)}" r="4" fill="${color}" stroke="#1a1a1a" stroke-width="1.5" data-fecha="${b.label}" data-val="${b.valor.toFixed(1)}" data-unit="${unit}" onmousemove="showConsTip(event,'${key}')" onmouseleave="hideConsTip('${key}')"/>`;
+        if(i===0||i===buckets.length-1||i%2===0||buckets.length<=8) xlabels+=`<text x="${X(i).toFixed(1)}" y="${H-10}" text-anchor="middle" font-size="8.5" fill="#94A3B8">${b.label}</text>`;
+      });
+      chartHtml=`
+        <div class="chart-toolbar">
+          <span class="chart-rango">${rangoTxt}</span>
+          <div class="chart-toolbar-actions">
+            <button type="button" class="card-export-btn" onclick="event.stopPropagation();exportConsChart('${key}',this)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" stroke-width="2"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Generar imagen
+            </button>
+          </div>
+        </div>
+        <div class="svg-wrap" id="consChartWrap-${key}">
+          <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:100%;display:block">
+            ${grid}${ylabels}
+            <path d="${trendLine}" fill="none" stroke="${color}" stroke-width="1.6" stroke-dasharray="5 4" opacity=".6"/>
+            <path d="${realLine}" fill="none" stroke="${color}" stroke-width="2.4"/>
+            ${dots}${xlabels}
+          </svg>
+          <div class="svg-tooltip" id="consTip-${key}"></div>
+        </div>
+        <div class="chart-legend">
+          <span><i style="background:${color}"></i> Salidas ${CONS_RES_LABEL[resolucion].toLowerCase()} (${unit})</span>
+          <span><i class="dash" style="color:${color}"></i> Línea de tendencia</span>
+        </div>`;
+    }
+
+    bars+=`<div class="prodbar ${isOpen?'open':''}" data-prod="${key}" style="border-color:${color}66">
+      <div class="prodbar-head" onclick="toggleConsChart(this)">
+        <div class="prodbar-left">
+          <div class="prodbar-chart-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 19V9m6 10V5m6 14v-7m6 7V11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></div>
+          <span class="prodbar-nm">${p[1]}</span>
+        </div>
+        <div class="prodbar-right">
+          <span class="prodbar-tot">${v(tot[key],1)} ${unit} en el rango</span>
+          <svg class="prodbar-chev" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="prodbar-body"><div class="prodbar-body-inner">${chartHtml}</div></div>
+    </div>`;
+  });
+
+  return `<div class="rc-k" style="margin:18px 0 6px">Gráficas de consumo por producto <span class="small" style="font-weight:600;text-transform:none;letter-spacing:0">toca el nombre del producto para ver la gráfica · resolución ${CONS_RES_LABEL[resolucion].toLowerCase()}</span></div>
+    <div class="consgrid">${bars}</div>`;
+}
+function showConsTip(evt,key){
+  const tip=document.getElementById('consTip-'+key); const c=evt.target;
+  const wrap=document.getElementById('consChartWrap-'+key); const r=wrap.getBoundingClientRect();
+  tip.innerHTML=`${c.getAttribute('data-fecha')} · <b>${c.getAttribute('data-val')} ${c.getAttribute('data-unit')}</b>`;
+  tip.style.left=(evt.clientX-r.left)+'px'; tip.style.top=(evt.clientY-r.top-10)+'px'; tip.classList.add('show');
+}
+function hideConsTip(key){ const t=document.getElementById('consTip-'+key); if(t) t.classList.remove('show'); }
+
+function renderConsPeriodo(f){
   const {prods,tot,porSede,dias,movs}=consumoRango(f);
-  if(!movs.length){
-    cont.innerHTML = emptyMsg("No hay salidas de insumos ALP en el rango filtrado.") + renderInvIntel(f)
-      + sectionDivider("6","La trazabilidad","¿concuerdan los registros entre plataformas?") + renderOTConcil(f);
-    return;
-  }
+  if(!movs.length) return sectionDivider("2","El consumo","¿cuánto y de qué producto?")
+    +emptyMsg("No hay salidas de insumos ALP en el rango filtrado.");
   const total=dias.pico+dias.valle+dias.rampa;
   let domLbl="—"; if(total){ const mx=Math.max(dias.pico,dias.valle,dias.rampa); domLbl= mx===dias.pico?"PICO":(mx===dias.valle?"VALLE":"RAMPA"); }
   let pills=`<span class="daypill pico">Pico (sáb–dom): ${dias.pico} d</span><span class="daypill valle">Valle (lun–mié): ${dias.valle} d</span><span class="daypill rampa">Rampa (jue–vie): ${dias.rampa} d</span>`;
   const fmtCOP=(n)=> "$"+Math.round(n).toLocaleString("es-CO");
+  const ambitoTot = f.pisc? `piscina ${f.pisc} · ${f.sede}` : (f.sede? `sede ${f.sede}` : "todas las sedes");
 
-  // ---- proyección a fin de mes (se construye el cuerpo y el subtítulo) ----
+  // ---- proyección a fin de mes ----
   let projBody="", projSub="";
   const mismoMes = f.desde&&f.hasta&&mesKey(f.desde)===mesKey(f.hasta);
   if(mismoMes){
@@ -9832,10 +10484,8 @@ function renderConsumo(){
       bicarbonato:   (g)=> Vfiltro>0? {val:g/(P.k_bicarbonato*Vfiltro), unit:"ppm"} : null,
       floculante:    ()=> null
     };
-    const ambito = f.pisc? `piscina ${f.pisc} (${f.sede})` : (f.sede? `sede ${f.sede}` : "todas las sedes");
+    const ambito = ambitoTot;
     projSub=`ritmo diario del rango filtrado · ${ambito} · vol ${v(Vfiltro,0)} m³ · faltan ${diasRestantes} días hasta ${fmtFecha(finMes)}`;
-
-    // --- PROYECCIÓN DEL MES (cards con kg estimados + costo con mostrar/ocultar) ---
     const unidad={pulsar:"kg",bisulfato:"kg",bicarbonato:"kg",hipoclorito_sodio:"kg",floculante:"L"};
     let cards="";
     prods.forEach(p=>{
@@ -9856,7 +10506,6 @@ function renderConsumo(){
     const allPriced = prods.filter(p=>estMes[p[0]]>0).every(p=>PRECIOS[p[0]]!=null);
     const totalCostTxt = allPriced? `<div class="infobox" style="margin-top:4px"><b>Costo total estimado del mes:</b> ${fmtCOP(sumCost)} (suma de los productos con precio cargado).</div>`
       : `<div class="note">El costo total del mes se calcula cuando todos los productos tengan precio cargado en <b>Parámetros</b>.</div>`;
-
     let rows="";
     prods.forEach(p=>{
       const resto=ritmo[p[0]]*diasRestantes;
@@ -9873,13 +10522,7 @@ function renderConsumo(){
     projBody=`<div class="infobox">El rango filtrado abarca meses distintos (o falta una fecha límite). No se calcula la proyección a fin de mes para evitar información no relevante.</div>`;
   }
 
-  let html=sectionDivider("1","El periodo","¿en qué contexto operativo se consume?")
-    +`<div class="panel"><h2>Periodo filtrado</h2>
-    <div style="margin-bottom:8px">${pills}</div>
-    <div class="note">El periodo es predominantemente de días <b>${domLbl}</b>. Recuerda: en días pico la demanda de cloro sube; en valle se hacen los tratamientos en bloque.</div></div>`;
-  const ambitoTot = f.pisc? `piscina ${f.pisc} · ${f.sede}` : (f.sede? `sede ${f.sede}` : "todas las sedes");
-
-  // ---- Consumo total por producto + participación visual ----
+  // ---- consumo total + participación ----
   const kgProds=prods.filter(p=>p[0]!=="floculante");
   const sumKg=kgProds.reduce((a,p)=>a+(tot[p[0]]||0),0);
   let partBars="";
@@ -9892,15 +10535,12 @@ function renderConsumo(){
           <div class="parttrack"><div class="partfill ${colCls[p[0]]||'c1'}" style="width:${Math.max(2,pct)}%"></div><span class="partpct">${v(pct,0)}%</span></div></div>`;
       }).join("")+`</div><div class="note">Porcentaje de cada producto sobre el total dosificado en kg (${v(sumKg,1)} kg) en el rango filtrado.</div>`;
   }
-  html+=sectionDivider("2","El consumo","¿cuánto y de qué producto?")
-    +`<div class="panel"><h2>Consumo total por producto <span class="small">en el rango filtrado · ${ambitoTot}</span></h2>
-    <div class="kpis">${prods.map(p=>`<div class="kpi"><div class="v">${v(tot[p[0]],1)}</div><div class="l">${p[1]}</div></div>`).join("")}</div>${partBars}</div>`;
 
-  // ---- Detalle por sede (mostrar/ocultar) — con tendencia vs periodo anterior igual ----
+  // ---- distribución por sede (con tendencia vs periodo anterior) ----
   const sedes=Object.keys(porSede);
+  let distHtml='';
   if(sedes.length){
     const unidadProd={pulsar:"kg",bisulfato:"kg",bicarbonato:"kg",hipoclorito_sodio:"kg",floculante:"L"};
-    // periodo inmediatamente anterior: mismo tamaño de rango, desplazado una vez hacia atrás
     let prevTot=null, prevPorSede=null, prevSub="";
     if(f.desde && f.hasta){
       const lenDays=Math.round((f.hasta-f.desde)/86400000)+1;
@@ -9912,7 +10552,6 @@ function renderConsumo(){
     } else {
       prevSub="define Desde y Hasta para ver la tendencia vs. el periodo anterior";
     }
-    // tendencia: ▲ aumento (rojo) · ▼ disminución (verde) · ≈ estable — mismo criterio del indicador de consumo del Tablero
     const consTrend=(cur,prev,unit)=>{
       if(prevTot==null) return "";
       if(!(prev>0)){ return (cur>0)? ` <span class="contrend" style="color:var(--bad)" title="sin consumo en el periodo anterior">▲ nuevo</span>` : ""; }
@@ -9933,22 +10572,68 @@ function renderConsumo(){
       const cur=tot[p[0]]||0, prev=prevTot?prevTot[p[0]]||0:0;
       return `<td><b>${v(cur,2)}</b>${consTrend(cur,prev,unidadProd[p[0]])}</td>`;
     }).join("")}</tr></tbody></table></div>
-    <div class="note">Cada celda muestra el consumo del rango filtrado y, debajo, la variación frente al <b>periodo inmediatamente anterior</b> (mismo número de días, desplazado una vez hacia atrás) en <b>porcentaje y en ${'kg/L'} según el producto</b>. ▲ aumento · ▼ disminución · ≈ estable, igual que el indicador de consumo del Tablero.</div>`;
-    html+=sectionDivider("3","La distribución","¿dónde se concentra y cómo evoluciona?")
-      +`<div class="panel">${panelHead("Detalle por sede",prevSub,SHOW_DET_SEDE,"toggleDetSede")}${SHOW_DET_SEDE?detBody:hiddenNote("el consumo por sede y su tendencia vs. el periodo anterior")}</div>`;
+    <div class="note">Cada celda muestra el consumo del rango filtrado y, debajo, la variación frente al <b>periodo inmediatamente anterior</b> (mismo número de días, desplazado una vez hacia atrás) en <b>porcentaje y en kg/L según el producto</b>. ▲ aumento · ▼ disminución · ≈ estable, igual que el indicador de consumo del Tablero.</div>`;
+    distHtml=`<div class="rc-k" style="margin:18px 0 6px">Distribución por sede <span class="small" style="font-weight:600;text-transform:none;letter-spacing:0">${prevSub}</span></div>${detBody}`;
   }
 
-  // ---- Proyección a fin de mes (mostrar/ocultar) ----
-  html+=sectionDivider("4","La proyección","¿hacia dónde vamos a fin de mes?")
-    +`<div class="panel">${panelHead("Proyección a fin de mes",projSub,SHOW_PROY_MES,"toggleProyMes")}${SHOW_PROY_MES?projBody:hiddenNote("la proyección a fin de mes")}</div>`;
+  return sectionDivider("2","El consumo","¿cuánto, de qué producto, dónde y hacia dónde vamos?")
+    +`<div class="panel"><h2>Periodo, consumo, distribución y proyección <span class="small">${ambitoTot}</span></h2>
+    <div style="margin-bottom:8px">${pills}</div>
+    <div class="note">El periodo es predominantemente de días <b>${domLbl}</b>. Recuerda: en días pico la demanda de cloro sube; en valle se hacen los tratamientos en bloque.</div>
+    <div class="rc-k" style="margin:18px 0 6px">Consumo total por producto</div>
+    <div class="kpis">${prods.map(p=>`<div class="kpi"><div class="v">${v(tot[p[0]],1)}</div><div class="l">${p[1]}</div></div>`).join("")}</div>${partBars}
+    ${consBarrasHTML(f, prods, tot, movs)}
+    ${distHtml}
+    <div class="rc-k" style="margin:18px 0 6px">Proyección a fin de mes <span class="small" style="font-weight:600;text-transform:none;letter-spacing:0">${projSub}</span></div>
+    ${projBody}
+    </div>`;
+}
 
-  // ---- Acto 5: Inteligencia de inventarios ----
-  html+=renderInvIntel(f);
+/* ---- Sub-render: pestaña "Trazabilidad" ----
+   Envuelve renderOTConcil(f) tal cual (sin modificar su cálculo), pero
+   colapsa el alertbox largo de apertura en un resumen corto + botón para
+   expandir la definición completa (reutiliza toggleModHelp, mismo patrón
+   ya usado para "¿Cómo funciona este módulo?"). */
+function renderConsTraza(f){
+  let html = sectionDivider("6","La trazabilidad","¿concuerdan los registros entre plataformas?");
+  const otHtml = renderOTConcil(f);
+  /* Sustituye el <div class="alertbox">...</div> largo (definición de
+     Consistente/Inconsistente/consolidación) por un resumen corto con
+     acordeón — el resto de renderOTConcil() no se toca. */
+  const alertRe = /<div class="alertbox">Conciliación de salidas entre plataformas\.[\s\S]*?<\/div>\n {4}<div class="labcards">/;
+  const resumen = `<div class="modhelp" id="modhelp-otconcil">
+      <button type="button" class="modhelp-btn" onclick="toggleModHelp(this)" aria-expanded="false">
+        <span class="modhelp-ic">ℹ</span><span>¿Cómo se clasifica Consistente / Inconsistente?</span><span class="modhelp-arrow">↓</span>
+      </button>
+      <div class="modhelp-panel"><div class="alertbox">Conciliación de salidas entre plataformas. Una operación es <b>Consistente</b> si existe un descuento con la <b>misma fecha y cantidad</b> en ambas bases dentro de la misma sede y producto (la piscina exacta puede diferir entre sistemas sin que esto se considere un error, ya que ALP y OFFICETRACK no siempre registran la piscina de forma idéntica). Es <b>Inconsistente</b> si el registro <b>no fue simultáneo</b> (distinta fecha o cantidad), si <b>falta el descuento</b> en una de las plataformas, o si la <b>observación</b> no concuerda con la cantidad aplicada. Cuando un movimiento no tiene pareja propia pero la <b>Σ del producto sí concilia</b> entre plataformas (ej. OFFICETRACK consolida varios movimientos de ALP en un solo registro), se marca como <b>consolidación</b> en vez de faltante real, para no alarmar por dinero/producto que sí quedó contabilizado. No hay niveles de severidad: la clasificación es binaria. Cada usuario se califica por <b>su</b> porcentaje de inconsistencias sobre su propio total de salidas. Los nombres se consolidan por similitud y se marca cuando el campo trae un nombre de producto. <b>Las sedes ${OT_EXCLUDE_SEDES.map(s=>s.charAt(0)+s.slice(1).toLowerCase()).join(' y ')} se excluyen del cruce</b>.</div></div>
+    </div>
+    <div class="labcards">`;
+  html += otHtml.replace(alertRe, resumen);
+  return html;
+}
 
-  // ---- Acto 6: Conciliación OFFICETRACK vs ALP ----
-  html+=sectionDivider("6","La trazabilidad","¿concuerdan los registros entre plataformas?");
-  html+=renderOTConcil(f);
-
+/* ---- Despachador de pestañas del módulo Consumo Químico ----
+   Mismo patrón que setLabTab()/renderLab() en Laboratorios. */
+let CONS_TAB = 'hoy';
+function setConsTab(t){
+  CONS_TAB=t;
+  document.querySelectorAll('#consSubnav .lst').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
+  renderConsumo();
+  const cont=document.getElementById('consumo'); if(cont) cont.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function renderConsumo(){
+  const f=getFilt();
+  const cont=document.getElementById("consumo");
+  let html='';
+  switch(CONS_TAB){
+    case 'kpis':    html=renderInvIntel(f); break;
+    case 'consumo': html=renderConsPeriodo(f); break;
+    case 'calc':    html=renderConsCalc(); break;
+    case 'intel':   html=renderConsIntel(f); break;
+    case 'traza':   html=renderConsTraza(f); break;
+    case 'hoy':
+    default:        html=renderConsHoy(); break;
+  }
   cont.innerHTML=html;
 }
 
@@ -18035,6 +18720,91 @@ async function exportCardAsImage(cardEl, fileName){
     return null;
   }
 }
+
+/* =====================================================================
+   EXPORTACIÓN DE GRÁFICAS DE CONSUMO — paleta clara "Plan de Acción"
+   ─────────────────────────────────────────────────────────────────────
+   Solo afecta la imagen exportada: la gráfica interactiva del dashboard
+   sigue en el tema oscuro premium sin cambios. Se redibuja un SVG aparte
+   con la MISMA paleta corporativa que ya usan los Planes de Acción en
+   Word (#212121 título · #424242 ejes · #E65100 tendencia · #1565C0
+   serie · #FAFAFA fondo), usando los mismos datos ya calculados por
+   consBucketize()/consLinReg() — no se recalcula ningún valor, solo se
+   redibuja con otros colores para la imagen. Reutiliza html2canvas ya
+   cargado por ensureHtml2Canvas().
+   ===================================================================== */
+const CONS_EXPORT_PALETTE={titulo:'#212121',ejes:'#424242',tendencia:'#E65100',serie:'#1565C0',fondo:'#FAFAFA'};
+function consBuildExportSVG(prodKey, prodLabel, buckets, unit, resolucionLbl, rangoTxt){
+  const P=CONS_EXPORT_PALETTE;
+  const vals=buckets.map(b=>b.valor);
+  const trend=consLinReg(vals);
+  const W=780,H=460,pl=60,pr=30,pt=70,pb=90,iw=W-pl-pr,ih=H-pt-pb;
+  let mn=Math.min(...vals,...trend), mx=Math.max(...vals,...trend);
+  if(mn===mx){ mn-=1; mx+=1; } const pad=(mx-mn)*0.15; mn=Math.max(0,mn-pad); mx=mx+pad;
+  const X=i=>pl+(buckets.length>1?(i/(buckets.length-1))*iw:iw/2);
+  const Y=val=>pt+ih-((val-mn)/(mx-mn))*ih;
+  let grid='',ylabels='';
+  for(let i=0;i<=5;i++){ const val=mn+(mx-mn)*i/5, yy=Y(val);
+    grid+=`<line x1="${pl}" y1="${yy.toFixed(1)}" x2="${W-pr}" y2="${yy.toFixed(1)}" stroke="${P.ejes}" stroke-width="0.6" opacity=".18"/>`;
+    ylabels+=`<text x="${pl-10}" y="${(yy+4).toFixed(1)}" text-anchor="end" font-size="12" fill="${P.ejes}" font-family="sans-serif">${val.toFixed(1)}</text>`; }
+  grid+=`<line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ih}" stroke="${P.ejes}" stroke-width="1.2"/>`;
+  grid+=`<line x1="${pl}" y1="${pt+ih}" x2="${W-pr}" y2="${pt+ih}" stroke="${P.ejes}" stroke-width="1.2"/>`;
+  const trendLine=trend.map((val,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(val).toFixed(1)).join(' ');
+  const realLine=buckets.map((b,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(b.valor).toFixed(1)).join(' ');
+  let dots='',xlabels='';
+  buckets.forEach((b,i)=>{
+    dots+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(b.valor).toFixed(1)}" r="4.5" fill="${P.serie}" stroke="${P.fondo}" stroke-width="1.5"/>`;
+    if(i===0||i===buckets.length-1||i%2===0||buckets.length<=10)
+      xlabels+=`<text x="${X(i).toFixed(1)}" y="${H-pb+22}" text-anchor="middle" font-size="11" fill="${P.ejes}" font-family="sans-serif" transform="rotate(-30 ${X(i).toFixed(1)} ${H-pb+22})">${b.label}</text>`;
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="background:${P.fondo}">
+    <rect x="0" y="0" width="${W}" height="${H}" fill="${P.fondo}"/>
+    <text x="${W/2}" y="34" text-anchor="middle" font-size="20" font-weight="700" fill="${P.titulo}" font-family="sans-serif">Consumo — ${prodLabel}</text>
+    <text x="${W/2}" y="54" text-anchor="middle" font-size="11.5" font-style="italic" fill="${P.ejes}" font-family="sans-serif">Resolución: ${resolucionLbl} · ${rangoTxt}</text>
+    ${grid}${ylabels}
+    <path d="${trendLine}" fill="none" stroke="${P.tendencia}" stroke-width="2" stroke-dasharray="8 6"/>
+    <path d="${realLine}" fill="none" stroke="${P.serie}" stroke-width="2.6"/>
+    ${dots}${xlabels}
+    <text x="${W/2-90}" y="${H-14}" font-size="11" fill="${P.serie}" font-family="sans-serif">— Salidas (${unit})</text>
+    <text x="${W/2+40}" y="${H-14}" font-size="11" fill="${P.tendencia}" font-family="sans-serif">┄ Línea de tendencia</text>
+  </svg>`;
+}
+async function exportConsChart(prodKey, btn){
+  const original=btn?btn.innerHTML:null;
+  try{
+    if(btn){ btn.disabled=true; btn.innerHTML='<span class="card-export-spin">⏳</span> Generando…'; }
+    await ensureHtml2Canvas();
+    const f=getFilt();
+    const {prods,tot,movs}=consumoRango(f);
+    const pdef=prods.find(p=>p[0]===prodKey);
+    if(!pdef){ alert('No hay datos de este producto en el rango filtrado.'); return; }
+    const diasRango=(f.desde&&f.hasta)?Math.max(1,Math.round((f.hasta-f.desde)/86400000)+1):null;
+    const resolucion=diasRango?consResolucion(diasRango):'diario';
+    const movsProd=movs.filter(m=>m.prod===prodKey);
+    const buckets=consBucketize(movsProd,f,resolucion);
+    if(!buckets.length){ alert('No hay puntos suficientes para graficar este producto en el rango filtrado.'); return; }
+    const unit=prodKey==='floculante'?'L':'kg';
+    const rangoTxt=(f.desde&&f.hasta)?`${fmtFecha(f.desde)} – ${fmtFecha(f.hasta)}`:'rango sin fecha completa';
+    const svgStr=consBuildExportSVG(prodKey, pdef[1], buckets, unit, CONS_RES_LABEL[resolucion], rangoTxt);
+
+    const host=document.createElement('div');
+    host.style.cssText='position:fixed;left:-99999px;top:0;background:#FAFAFA;';
+    host.innerHTML=svgStr;
+    document.body.appendChild(host);
+    const canvas=await window.html2canvas(host,{backgroundColor:'#FAFAFA',scale:2.5,useCORS:true,logging:false});
+    document.body.removeChild(host);
+    const blob=await new Promise(resolve=>canvas.toBlob(b=>resolve(b),'image/png',1.0));
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`Consumo_${clean(pdef[1]).replace(/\s+/g,'_')}_${fmtFecha(new Date()).replace(/\s+/g,'_')}.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(err){
+    alert('No se pudo generar la imagen: '+err.message);
+  }finally{
+    if(btn){ btn.disabled=false; btn.innerHTML=original; }
+  }
+}
 async function downloadCardImage(btn){
   const cardEl=btn.closest('.card');
   if(!cardEl) return;
@@ -18166,6 +18936,124 @@ async function generarExcelAlcalinidadDureza(){
     XLSX.utils.book_append_sheet(wb, ws, "Alcalinidad y dureza");
 
     const fname=`Alcalinidad_Dureza_${fmtFecha(new Date()).replace(/\s+/g,'_')}.xlsx`;
+    XLSX.writeFile(wb, fname);
+  }catch(err){
+    alert('No se pudo generar el informe: '+err.message);
+  }finally{
+    btn.disabled=false; btn.innerHTML=original;
+  }
+}
+
+/* ===================== INFORME EXCEL — SALIDAS POR PRODUCTO =====================
+   Genera un .xlsx con 4 hojas, todas derivadas de MOVS (mismo origen que
+   consumoRango(), sin recalcular nada de lógica de negocio):
+     1. Detalle de salidas — misma información que la hoja Movimientos
+        anclada, organizada por columnas, incluyendo el USUARIO que cargó
+        cada registro (m.usuario, ya parseado por parseInsumos()).
+     2. Promedio por sede y producto — solo se genera si el filtro abarca
+        2 o más sedes.
+     3. Promedio por piscina y producto — dentro de cada sede si el filtro
+        cubre varias, o de la única sede si el filtro está acotado a una.
+     4. Promedio por día/semana global — consumo total del rango dividido
+        entre días y entre semanas (días/7), consistente con el "ritmo
+        diario" que ya usa la proyección de fin de mes.
+   Respeta el filtro global (getFilt()) igual que el resto de Centro de
+   Informes. No modifica evalPool/evalLab/inventarioIntel ni ninguna de
+   las 16 funciones protegidas. */
+async function generarExcelSalidasProducto(){
+  const btn=document.getElementById('btnExcelSalidas');
+  const original=btn.innerHTML;
+  try{
+    btn.disabled=true; btn.innerHTML='<span class="card-export-spin">⏳</span> Generando…';
+    if(!window.XLSX) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+
+    const f=getFilt();
+    const {prods,tot,movs}=consumoRango(f);
+    if(!movs.length){ alert('No hay salidas de insumos ALP en el rango filtrado.'); return; }
+
+    const sedesEnRango=[...new Set(movs.map(m=>m.pool?m.pool.sede:m.sede))].filter(Boolean);
+    const multiSede = sedesEnRango.length>1;
+    const diasRango = (f.desde&&f.hasta)? Math.max(1,Math.round((f.hasta-f.desde)/86400000)+1) : null;
+    const semanasRango = diasRango? diasRango/7 : null;
+
+    /* ---------- Hoja 1 · Detalle de salidas (misma info que Movimientos, organizada) ---------- */
+    const h1=["Fecha","Sede","Piscina","Producto","Cantidad","Unidad","Usuario","Observaciones"];
+    const r1=movs.slice().sort((a,b)=>a.fecha-b.fecha).map(m=>{
+      const pdef=prods.find(p=>p[0]===m.prod);
+      const unit=m.prod==='floculante'?'L':'kg';
+      return [
+        m.fecha?fmtFecha(m.fecha):'—',
+        m.pool?m.pool.sede:(m.sede||'—'),
+        m.pool?m.pool.piscina:(m.pisc||'—'),
+        pdef?pdef[1]:m.label,
+        round1(m.cant),
+        unit,
+        m.usuario||'—',
+        m.obs||''
+      ];
+    });
+    const ws1=XLSX.utils.aoa_to_sheet([h1, ...r1]);
+    ws1['!cols']=h1.map((h,i)=>({wch: Math.max(h.length+2, i===7?30:14)}));
+    ws1['!autofilter']={ref: XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r1.length,c:h1.length-1}})};
+
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws1, "Detalle de salidas");
+
+    /* ---------- Hoja 2 · Promedio por sede y producto (solo si 2+ sedes) ---------- */
+    if(multiSede){
+      const h2=["Sede","Producto","Total rango","Promedio por día","Promedio por semana"];
+      const r2=[];
+      sedesEnRango.sort().forEach(sede=>{
+        prods.forEach(p=>{
+          const key=p[0];
+          const totSedeProd=movs.filter(m=>(m.pool?m.pool.sede:m.sede)===sede && m.prod===key).reduce((a,m)=>a+m.cant,0);
+          if(totSedeProd<=0) return;
+          const promDia = diasRango? totSedeProd/diasRango : null;
+          const promSem = semanasRango? totSedeProd/semanasRango : null;
+          r2.push([sede, p[1], round1(totSedeProd), promDia!=null?round1(promDia):'—', promSem!=null?round1(promSem):'—']);
+        });
+      });
+      const ws2=XLSX.utils.aoa_to_sheet([h2, ...r2]);
+      ws2['!cols']=h2.map((h,i)=>({wch: Math.max(h.length+2, i<2?18:14)}));
+      ws2['!autofilter']={ref: XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r2.length,c:h2.length-1}})};
+      XLSX.utils.book_append_sheet(wb, ws2, "Promedio por sede");
+    }
+
+    /* ---------- Hoja 3 · Promedio por piscina y producto ---------- */
+    const piscinasEnRango=[...new Set(movs.filter(m=>m.pool).map(m=>m.pool.sede+'|'+m.pool.piscina))];
+    if(piscinasEnRango.length){
+      const h3=["Sede","Piscina","Producto","Total rango","Promedio por día","Promedio por semana"];
+      const r3=[];
+      piscinasEnRango.sort().forEach(key=>{
+        const [sede,piscina]=key.split('|');
+        prods.forEach(p=>{
+          const pkey=p[0];
+          const totPiscProd=movs.filter(m=>m.pool && m.pool.sede===sede && m.pool.piscina===piscina && m.prod===pkey).reduce((a,m)=>a+m.cant,0);
+          if(totPiscProd<=0) return;
+          const promDia = diasRango? totPiscProd/diasRango : null;
+          const promSem = semanasRango? totPiscProd/semanasRango : null;
+          r3.push([sede, piscina, p[1], round1(totPiscProd), promDia!=null?round1(promDia):'—', promSem!=null?round1(promSem):'—']);
+        });
+      });
+      const ws3=XLSX.utils.aoa_to_sheet([h3, ...r3]);
+      ws3['!cols']=h3.map((h,i)=>({wch: Math.max(h.length+2, i<3?16:14)}));
+      ws3['!autofilter']={ref: XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r3.length,c:h3.length-1}})};
+      XLSX.utils.book_append_sheet(wb, ws3, "Promedio por piscina");
+    }
+
+    /* ---------- Hoja 4 · Promedio global por día/semana (todos los productos) ---------- */
+    const h4=["Producto","Total rango","Promedio por día","Promedio por semana"];
+    const r4=prods.filter(p=>(tot[p[0]]||0)>0).map(p=>{
+      const promDia = diasRango? tot[p[0]]/diasRango : null;
+      const promSem = semanasRango? tot[p[0]]/semanasRango : null;
+      return [p[1], round1(tot[p[0]]), promDia!=null?round1(promDia):'—', promSem!=null?round1(promSem):'—'];
+    });
+    const ws4=XLSX.utils.aoa_to_sheet([h4, ...r4]);
+    ws4['!cols']=h4.map((h,i)=>({wch: Math.max(h.length+2, i===0?26:14)}));
+    ws4['!autofilter']={ref: XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r4.length,c:h4.length-1}})};
+    XLSX.utils.book_append_sheet(wb, ws4, "Promedio global");
+
+    const fname=`Salidas_por_Producto_${fmtFecha(new Date()).replace(/\s+/g,'_')}.xlsx`;
     XLSX.writeFile(wb, fname);
   }catch(err){
     alert('No se pudo generar el informe: '+err.message);
