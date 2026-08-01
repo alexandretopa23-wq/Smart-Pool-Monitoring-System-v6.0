@@ -4329,6 +4329,37 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
   .calc-input input{font-size:18px;padding:11px 12px}
   .chart-legend{gap:10px}
 }
+
+/* =====================================================================
+   MULTI-SELECCIÓN DE SEDE — Marco Analítico
+   Namespace .msede-*. El <select id="fSede" multiple> real queda oculto
+   (accesible, es la fuente de verdad); esta es solo la capa visual.
+   Reutiliza los mismos tokens que el resto de inputs del filtro.
+   ===================================================================== */
+.msede-btn{
+  width:100%;padding:10px 12px;border:1px solid var(--line-d);border-radius:10px;
+  font-size:var(--fs-13);background:var(--surface-3);font-family:inherit;color:var(--txt-d);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;
+  text-align:left;min-width:0;
+}
+.msede-btn:hover{border-color:var(--acen-2)}
+.msede-btn svg{transition:transform .18s ease;flex-shrink:0;color:var(--muted-d)}
+.msede-btn span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.msede-panel{
+  position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;
+  background:linear-gradient(165deg,#262626 0%,#1f1f1f 100%);border:1px solid var(--line-d);
+  border-radius:12px;box-shadow:0 14px 32px rgba(0,0,0,.45);padding:10px;
+  max-height:280px;display:flex;flex-direction:column;
+}
+.msede-actions{display:flex;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line-soft)}
+.msede-actions button{flex:1;padding:6px 10px;border-radius:8px;border:1px solid var(--line-d);
+  background:var(--surface-2);color:var(--txt-d);font-size:11px;font-weight:700;cursor:pointer}
+.msede-actions button:hover{background:var(--surface-3);border-color:var(--acen-2)}
+.msede-list{overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.msede-item{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:8px;cursor:pointer;
+  font-size:12.5px;color:var(--txt-d);transition:background .12s ease}
+.msede-item:hover{background:rgba(255,255,255,.05)}
+.msede-item input[type=checkbox]{width:15px;height:15px;accent-color:var(--acen);flex-shrink:0;cursor:pointer}
 </style>
 </head>
 
@@ -4757,7 +4788,21 @@ input[type=text]:focus, input[type=date]:focus, input[type=number]:focus, select
         <div class="row">
           <div class="fld" style="max-width:170px"><label>Desde</label><input type="date" id="fDesde" onchange="renderAll()"></div>
           <div class="fld" style="max-width:170px"><label>Hasta</label><input type="date" id="fHasta" onchange="renderAll()"></div>
-          <div class="fld" style="max-width:210px"><label>Sede</label><select id="fSede" onchange="onSedeChange()"><option value="">Todas las sedes</option></select></div>
+          <div class="fld" style="max-width:230px;position:relative">
+            <label>Sede</label>
+            <button type="button" class="msede-btn" id="msedeBtn" onclick="toggleSedeDropdown()">
+              <span id="msedeBtnLabel">Todas las sedes</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="msede-panel" id="msedePanel" style="display:none">
+              <div class="msede-actions">
+                <button type="button" onclick="msedeSelectAll()">Todas</button>
+                <button type="button" onclick="msedeSelectNone()">Ninguna</button>
+              </div>
+              <div class="msede-list" id="msedeList"></div>
+            </div>
+            <select id="fSede" style="display:none" multiple></select>
+          </div>
           <div class="fld" style="max-width:230px"><label>Piscina</label><select id="fPisc" onchange="renderAll()"><option value="">Todas las piscinas</option></select></div>
           <div style="display:flex;gap:8px">
             <button class="gh sm" onclick="resetFiltros();collapseFilters()">Restablecer rango</button>
@@ -5604,7 +5649,7 @@ const PIMS_LAST_FILTER_KEY = "pims_last_filter_v1";
    tras un F5 — puente entre pimsRestoreLastFilter() (que solo puede tocar
    inputs ya existentes en el DOM) y el momento en que <select> de sede/
    piscina terminan de poblarse con sus <option>. null = nada pendiente. */
-let PIMS_PENDING_SEDE=null, PIMS_PENDING_PISC=null;
+let PIMS_PENDING_SEDES=null, PIMS_PENDING_PISC=null;
 let ACTIVE_CLIENT = null;
 let EXCLUDED_SEDES = [];
 let OPERATOR_SEDE = null; // solo aplica al perfil OPERACIÓN: nombre canónico de la sede del operador
@@ -6516,16 +6561,31 @@ function dataBounds(){
   return {mn,mx};
 }
 function getFilt(){
+  const sedeSel=document.getElementById("fSede");
+  const sedes=sedeSel? [...sedeSel.selectedOptions].map(o=>o.value) : [];
+  /* Compatibilidad hacia atrás: "sede" (string) sigue existiendo para los
+     ~35 puntos del sistema que comparan igualdad exacta o muestran el
+     nombre de una sola sede en texto. Se deriva así:
+       0 sedes seleccionadas  -> sede=""  (equivale a "todas", igual que antes)
+       1 sede seleccionada    -> sede=esa única sede (comportamiento idéntico al actual)
+       2+ sedes seleccionadas -> sede=""  (esos ~35 puntos tratan "" como "sin restricción",
+                                            que es la lectura correcta cuando hay un
+                                            subconjunto: no hay una única sede que nombrar)
+     El filtrado real por el CONJUNTO de sedes seleccionado vive en "sedes"
+     (array) y solo lo consumen los puntos que necesitan agrupar/filtrar
+     por varias sedes a la vez: poolPassFilter, movPassFilter, invHoy. */
   return {
     desde: fromInput(document.getElementById("fDesde").value),
     hasta: fromInput(document.getElementById("fHasta").value),
-    sede: document.getElementById("fSede").value,
+    sede: sedes.length===1? sedes[0] : "",
+    sedes: sedes,
     pisc: document.getElementById("fPisc").value
   };
 }
 function inRange(d,f){ if(!d)return false; if(f.desde&&d<f.desde)return false; if(f.hasta){const h=new Date(f.hasta);h.setHours(23,59,59);if(d>h)return false;} return true; }
 function poolPassFilter(pool,f){
-  if(f.sede && pool.sede!==f.sede) return false;
+  if(f.sedes && f.sedes.length && !f.sedes.includes(pool.sede)) return false;
+  else if(!f.sedes && f.sede && pool.sede!==f.sede) return false;
   if(f.pisc && pool.piscina!==f.pisc) return false;
   return true;
 }
@@ -7673,7 +7733,9 @@ function indicadores(f){
 function clasificaDia(d){ const w=d.getDay(); if(w===0||w===6)return"pico"; if(w>=1&&w<=3)return"valle"; return"rampa"; }
 /* ¿pasa un movimiento el filtro de sede + piscina? (usa pool si existe; si no, sede) */
 function movPassFilter(m,f){
-  if(f.sede){ const ms = m.pool? m.pool.sede : m.sede; if(ms!==f.sede) return false; }
+  const ms = m.pool? m.pool.sede : m.sede;
+  if(f.sedes && f.sedes.length){ if(!f.sedes.includes(ms)) return false; }
+  else if(!f.sedes && f.sede){ if(ms!==f.sede) return false; }
   if(f.pisc){ if(!m.pool || m.pool.piscina!==f.pisc) return false; }
   return true;
 }
@@ -7729,7 +7791,11 @@ function pimsRestoreLastFilter(){
     const dD=document.getElementById("fDesde"), dH=document.getElementById("fHasta");
     if(saved.desde && dD && !dD.value) dD.value=saved.desde;
     if(saved.hasta && dH && !dH.value) dH.value=saved.hasta;
-    if(saved.sede) PIMS_PENDING_SEDE=saved.sede;
+    /* Compatibilidad hacia atrás: filtros guardados antes de la multi-selección
+       traían "sede" como string único. Los nuevos traen "sedes" como array.
+       Se normaliza a array en ambos casos. */
+    if(Array.isArray(saved.sedes) && saved.sedes.length) PIMS_PENDING_SEDES=saved.sedes;
+    else if(saved.sede) PIMS_PENDING_SEDES=[saved.sede];
     if(saved.pisc) PIMS_PENDING_PISC=saved.pisc;
   }catch(e){}
 }
@@ -7743,7 +7809,7 @@ function pimsPersistCurrentFilter(){
     localStorage.setItem(PIMS_LAST_FILTER_KEY, JSON.stringify({
       desde: document.getElementById("fDesde")?.value||"",
       hasta: document.getElementById("fHasta")?.value||"",
-      sede: f.sede||"", pisc: f.pisc||""
+      sedes: f.sedes||[], sede: f.sede||"", pisc: f.pisc||""
     }));
   }catch(e){}
 }
@@ -7769,23 +7835,84 @@ function syncFiltros(){
   }
   // sedes presentes
   const sedesData=[...new Set(MED.filter(m=>m.pool).map(m=>m.pool.sede).concat(MOVS.filter(m=>m.pool).map(m=>m.pool.sede)).concat(LAB.filter(l=>l.pool).map(l=>l.pool.sede)).concat(CONTRA.filter(c=>c.pool).map(c=>c.pool.sede)))];
-  const sedeSel=document.getElementById("fSede"); const cur=PIMS_PENDING_SEDE!=null?PIMS_PENDING_SEDE:sedeSel.value;
-  PIMS_PENDING_SEDE=null;
-  sedeSel.innerHTML='<option value="">Todas las sedes</option>'+SEDE_ORDER.filter(s=>sedesData.includes(s)).map(s=>`<option value="${s}">${s}</option>`).join("");
-  sedeSel.value=cur;
+  const sedesOrdenadas=SEDE_ORDER.filter(s=>sedesData.includes(s));
+  const sedeSel=document.getElementById("fSede");
+  const curSel=[...sedeSel.selectedOptions].map(o=>o.value);
+  const cur=PIMS_PENDING_SEDES!=null?PIMS_PENDING_SEDES:curSel;
+  PIMS_PENDING_SEDES=null;
+  sedeSel.innerHTML=sedesOrdenadas.map(s=>`<option value="${s}">${s}</option>`).join("");
+  [...sedeSel.options].forEach(o=>{ o.selected=cur.includes(o.value); });
+  msedeSyncPanel();
   fillPiscinas();
   pimsPersistCurrentFilter();
 }
+/* ---- Multi-selección de sede (Marco Analítico) ----
+   El <select id="fSede" multiple> es la fuente de verdad real (accesible,
+   compatible con lectores de pantalla); el panel de checkboxes es solo la
+   capa visual. Ambos se mantienen sincronizados en las dos direcciones. */
+function msedeSyncPanel(){
+  const sedeSel=document.getElementById("fSede");
+  const list=document.getElementById("msedeList");
+  const selected=new Set([...sedeSel.selectedOptions].map(o=>o.value));
+  list.innerHTML=[...sedeSel.options].map(o=>`
+    <label class="msede-item">
+      <input type="checkbox" value="${o.value}" ${selected.has(o.value)?'checked':''} onchange="msedeToggle(this)">
+      <span>${o.value}</span>
+    </label>`).join("");
+  msedeUpdateLabel();
+}
+function msedeToggle(cb){
+  const sedeSel=document.getElementById("fSede");
+  const opt=[...sedeSel.options].find(o=>o.value===cb.value);
+  if(opt) opt.selected=cb.checked;
+  msedeUpdateLabel();
+  onSedeChange();
+}
+function msedeSelectAll(){
+  const sedeSel=document.getElementById("fSede");
+  [...sedeSel.options].forEach(o=>o.selected=true);
+  document.querySelectorAll('#msedeList input[type=checkbox]').forEach(cb=>cb.checked=true);
+  msedeUpdateLabel();
+  onSedeChange();
+}
+function msedeSelectNone(){
+  const sedeSel=document.getElementById("fSede");
+  [...sedeSel.options].forEach(o=>o.selected=false);
+  document.querySelectorAll('#msedeList input[type=checkbox]').forEach(cb=>cb.checked=false);
+  msedeUpdateLabel();
+  onSedeChange();
+}
+function msedeUpdateLabel(){
+  const sedeSel=document.getElementById("fSede");
+  const sel=[...sedeSel.selectedOptions].map(o=>o.value);
+  const lbl=document.getElementById("msedeBtnLabel");
+  if(!lbl) return;
+  if(sel.length===0) lbl.textContent="Todas las sedes";
+  else if(sel.length===1) lbl.textContent=sel[0];
+  else if(sel.length<=3) lbl.textContent=sel.join(", ");
+  else lbl.textContent=`${sel.length} sedes seleccionadas`;
+}
+function toggleSedeDropdown(){
+  const panel=document.getElementById("msedePanel");
+  const isOpen=panel.style.display!=='none';
+  panel.style.display=isOpen?'none':'block';
+}
+document.addEventListener('click', function(e){
+  const panel=document.getElementById("msedePanel"), btn=document.getElementById("msedeBtn");
+  if(!panel || panel.style.display==='none') return;
+  if(!panel.contains(e.target) && e.target!==btn && !btn.contains(e.target)) panel.style.display='none';
+});
 function fillPiscinas(){
-  const sede=document.getElementById("fSede").value;
+  const sedeSel=document.getElementById("fSede");
+  const sedes=[...sedeSel.selectedOptions].map(o=>o.value);
   const psel=document.getElementById("fPisc"); const cur=PIMS_PENDING_PISC!=null?PIMS_PENDING_PISC:psel.value;
   PIMS_PENDING_PISC=null;
-  let pools=POOLS.filter(p=>!sede||p.sede===sede);
+  let pools=POOLS.filter(p=>!sedes.length||sedes.includes(p.sede));
   psel.innerHTML='<option value="">Todas las piscinas</option>'+pools.map(p=>`<option value="${p.piscina}">${p.sede==''?'':''}${p.piscina}</option>`).join("");
   psel.value=cur;
 }
 function onSedeChange(){ fillPiscinas(); renderAll(); }
-function resetFiltros(){ const {mn,mx}=dataBounds(); document.getElementById("fDesde").value=mn?ymd(mn):""; document.getElementById("fHasta").value=mx?ymd(mx):""; document.getElementById("fSede").value=""; fillPiscinas(); document.getElementById("fPisc").value=""; try{ localStorage.removeItem(PIMS_LAST_FILTER_KEY); }catch(e){} renderAll(); }
+function resetFiltros(){ const {mn,mx}=dataBounds(); document.getElementById("fDesde").value=mn?ymd(mn):""; document.getElementById("fHasta").value=mx?ymd(mx):""; msedeSelectNone(); document.getElementById("fPisc").value=""; try{ localStorage.removeItem(PIMS_LAST_FILTER_KEY); }catch(e){} renderAll(); }
 
 /* ===================== FILTROS COLAPSABLES (solo UI) ===================== */
 function updateFilterSummary(){
@@ -9796,8 +9923,15 @@ function invTimelineHTML(events){
                            consecutivos, cada tramo aislado de los demás
                            (nunca se corre hacia atrás al cambiar el filtro).
    ===================================================================== */
-function invHoy(){
-  const base = MOVS.filter(m=>(m.tipo==='SALIDA'||m.tipo==='ENTRADA'||m.tipo==='CONTROL') && m.fecha && m.cant!=null);
+function invHoy(f){
+  f=f||{};
+  const passSede = m => !f.sedes || !f.sedes.length || f.sedes.includes(invSedeOf(m));
+  /* Solo se filtra por SEDE, nunca por fecha: "Inventario hoy" está
+     diseñado para ignorar el Marco Analítico de fechas por definición
+     (siempre usa el último control real, sin importar el rango) — el
+     filtro de sede es la única dimensión que aplica aquí, para no ir
+     en contra de esa regla ya establecida. */
+  const base = MOVS.filter(m=>(m.tipo==='SALIDA'||m.tipo==='ENTRADA'||m.tipo==='CONTROL') && m.fecha && m.cant!=null && passSede(m));
   const groups={};
   base.sort((a,b)=>a.fecha-b.fecha).forEach(m=>{
     const s=invSedeOf(m), k=s+'|'+m.prod;
@@ -9823,8 +9957,9 @@ function invHoy(){
   return {productos, hasData:productos.length>0};
 }
 function invCronologico(f){
+  const passSede = m => !f.sedes || !f.sedes.length || f.sedes.includes(invSedeOf(m));
   const cutoff = f.hasta? new Date(f.hasta.getFullYear(),f.hasta.getMonth(),f.hasta.getDate(),23,59,59,999) : null;
-  const base = MOVS.filter(m=>(m.tipo==='SALIDA'||m.tipo==='ENTRADA'||m.tipo==='CONTROL') && m.fecha && m.cant!=null && (!cutoff || m.fecha<=cutoff));
+  const base = MOVS.filter(m=>(m.tipo==='SALIDA'||m.tipo==='ENTRADA'||m.tipo==='CONTROL') && m.fecha && m.cant!=null && (!cutoff || m.fecha<=cutoff) && passSede(m));
   const groups={};
   base.sort((a,b)=>a.fecha-b.fecha).forEach(m=>{
     const s=invSedeOf(m), k=s+'|'+m.prod;
@@ -9850,7 +9985,7 @@ function invCronologico(f){
   return {productos, hasData:productos.length>0};
 }
 function invTramos(f){
-  const passSede = m => !f.sede || invSedeOf(m)===f.sede;
+  const passSede = m => !f.sedes || !f.sedes.length || f.sedes.includes(invSedeOf(m));
   const base = MOVS.filter(m=>(m.tipo==='SALIDA'||m.tipo==='ENTRADA'||m.tipo==='CONTROL') && m.fecha && m.cant!=null && passSede(m));
   const groups={};
   base.sort((a,b)=>a.fecha-b.fecha).forEach(m=>{
@@ -9878,7 +10013,7 @@ function invTramos(f){
 
 /* ---- Calculadora rápida de control (solo lectura, no escribe al sistema) ---- */
 function invCalcHTML(){
-  const IH = invHoy();
+  const IH = invHoy(getFilt());
   if(!IH.hasData) return `<div class="panel"><div class="alertbox">No hay controles físicos registrados todavía — la calculadora necesita al menos un control por producto para tener un punto de partida.</div></div>`;
   const prodSedeCount={}; IH.productos.forEach(p=>{ prodSedeCount[p.prod]=(prodSedeCount[p.prod]||0)+1; });
   const opts = IH.productos.map(p=>{
@@ -9931,18 +10066,26 @@ function invCalcRecalc(){
   else { box.className='calc-result adjust'; txt.innerHTML=`Diferencia: <b style="color:#8AC4F0">+${v(absDiff,1)} ${unit}</b><br>Tu conteo es mayor al esperado. Puede haber una entrada sin registrar, o el producto real es más del teórico.`; }
 }
 
-/* ---- Sub-render: pestaña "Inventario hoy" ---- */
+/* ---- Sub-render: pestaña "Inventario hoy" ----
+   Respeta el filtro de SEDE del Marco Analítico (nunca el de fechas, por
+   diseño — ver nota en invHoy()). Cuando el filtro cubre 2+ sedes (o
+   ninguna, "todas"), la información se agrupa por sede con el mismo
+   patrón .sede-h colapsable que ya usa el módulo Monitoreo (renderTablero),
+   para no mezclar bodegas de sedes distintas en una sola vista plana.
+   Cuando el filtro acota a exactamente 1 sede, se muestra directo sin
+   encabezado de agrupación (no aporta nada agrupar un solo grupo). */
 function renderConsHoy(){
-  const IH = invHoy();
-  if(!IH.hasData) return `<div class="panel"><div class="alertbox">No hay controles físicos registrados todavía en ninguna sede/producto. Registra al menos un control para activar esta vista.</div></div>`;
+  const f=getFilt();
+  const IH = invHoy(f);
+  if(!IH.hasData) return `<div class="panel"><div class="alertbox">No hay controles físicos registrados todavía en ninguna sede/producto para el filtro actual. Registra al menos un control para activar esta vista.</div></div>`;
   const fmtHoyFecha = fmtFecha(new Date());
   const prodSedeCountH={}; IH.productos.forEach(p=>{ prodSedeCountH[p.prod]=(prodSedeCountH[p.prod]||0)+1; });
   const tagSedeH = p => prodSedeCountH[p.prod]>1? ` · ${p.sede}` : '';
-  let cardsHoy='';
-  IH.productos.slice().sort((a,b)=>b.diasSinControl-a.diasSinControl).forEach(p=>{
+
+  const cardHTML_ = p => {
     const diasTxt = p.diasSinControl===0? 'Control de hoy' : `${p.diasSinControl} día${p.diasSinControl===1?'':'s'} sin control`;
     const diasWarn = p.diasSinControl>=14? ` <span style="color:var(--warn)">⚠ dato menos confiable</span>` : '';
-    cardsHoy+=`<div class="iecard ${p.diasSinControl>=14?'warn':'good'}">
+    return `<div class="iecard ${p.diasSinControl>=14?'warn':'good'}">
       <div class="ie-h"><span class="ie-nm">${p.label}${tagSedeH(p)}</span></div>
       <div class="ie-kpis">
         <div class="ie-k ie-k-wide">
@@ -9959,11 +10102,44 @@ function renderConsHoy(){
         <div class="ie-k"><span class="ie-kk">Días sin control</span><span class="ie-kv" style="font-size:19px">${p.diasSinControl}</span><span class="ie-kf">${diasTxt}</span></div>
       </div>
     </div>`;
-  });
+  };
+
+  const sedesEnDatos=[...new Set(IH.productos.map(p=>p.sede))];
+  const unaSolaSede = sedesEnDatos.length===1;
+
+  let bodyHtml;
+  if(unaSolaSede){
+    const cards=IH.productos.slice().sort((a,b)=>b.diasSinControl-a.diasSinControl).map(cardHTML_).join('');
+    bodyHtml=`<div class="invexec">${cards}</div>`;
+  } else {
+    const orderSedes=SEDE_ORDER.filter(s=>sedesEnDatos.includes(s)).concat(sedesEnDatos.filter(s=>!SEDE_ORDER.includes(s)));
+    let sedeBlocks='';
+    orderSedes.forEach(sede=>{
+      const prods=IH.productos.filter(p=>p.sede===sede).sort((a,b)=>b.diasSinControl-a.diasSinControl);
+      if(!prods.length) return;
+      /* Peor estado de la sede para el header: mismo criterio de prioridad
+         de lectura que ya usa .sede-h en Monitoreo (rojo/naranja > amarillo
+         > verde), adaptado a la escala de "días sin control" de este módulo. */
+      const worst = prods.some(p=>p.diasSinControl>=14)? 'o' : (prods.some(p=>p.diasSinControl>=7)? 'y' : 'v');
+      const nWarn = prods.filter(p=>p.diasSinControl>=14).length;
+      const id="invhoy_"+clean(sede).replace(/\s+/g,'_');
+      const gridDisplay = SEDES_COLAPSADAS?'none':'grid';
+      sedeBlocks+=`<div class="sede-h ${worst}" onclick="var x=document.getElementById('${id}');x.style.display=x.style.display==='none'?'grid':'none'">
+        <span class="sede-nm">${sede}</span>
+        <span class="sede-sum">${prods.length} producto${prods.length===1?'':'s'}${nWarn?` <i class="mini o">${nWarn} ⚠</i>`:''}</span></div>
+        <div class="cards invexec" id="${id}" style="display:${gridDisplay}">${prods.map(cardHTML_).join('')}</div>`;
+    });
+    bodyHtml=sedeBlocks;
+  }
+
+  const scopeTxt = f.sedes && f.sedes.length
+    ? (f.sedes.length===1? `sede ${f.sedes[0]}` : `${f.sedes.length} sedes seleccionadas`)
+    : 'todas las sedes';
+
   return sectionDivider("1","Inventario hoy","¿cómo está la bodega en este momento?")
-    +`<div class="panel"><h2>Inventario hoy <span class="small">último control físico + entradas − salidas desde ese control · ${fmtHoyFecha}</span></h2>
-    <div class="note" style="margin-bottom:12px">Esta vista ignora el filtro de Marco Analítico: siempre usa el último control físico registrado en el sistema, para reflejar el estado actual de la bodega sin importar qué rango tengas seleccionado arriba.</div>
-    <div class="invexec">${cardsHoy}</div></div>`;
+    +`<div class="panel"><h2>Inventario hoy <span class="small">último control físico + entradas − salidas desde ese control · ${fmtHoyFecha} · ${scopeTxt}</span></h2>
+    <div class="note" style="margin-bottom:12px">Esta vista respeta el filtro de <b>sede</b> del Marco Analítico (nunca el de fechas): siempre usa el último control físico registrado, para reflejar el estado actual de la bodega sin importar qué rango de fechas tengas seleccionado.</div>
+    ${bodyHtml}</div>`;
 }
 
 /* ---- Sub-render: pestaña "Calculadora de control" ---- */
@@ -9971,6 +10147,15 @@ function renderConsCalc(){
   return sectionDivider("4","La calculadora","¿cuánto ajustar según el conteo que acabo de hacer?") + invCalcHTML();
 }
 
+/* LIMITACIÓN CONOCIDA (pendiente de resolver, decisión explícita del
+   usuario): inventarioIntel() es una de las 16 funciones protegidas del
+   sistema y su filtrado interno por sede solo soporta el string único
+   f.sede (0 o 1 sede). Cuando el Marco Analítico tiene 2+ sedes
+   seleccionadas, f.sede queda en "" (ver getFilt()) y esta pestaña
+   ("KPIs ejecutivos") muestra TODAS las sedes en vez de solo las
+   seleccionadas — a diferencia de "Inventario hoy", "Inventario
+   cronológico" y "Descuadre por tramos" (invHoy/invCronologico/
+   invTramos), que sí filtran por el conjunto f.sedes. */
 function renderInvIntel(f){
   const I=inventarioIntel(f);
   if(!I.hasData){
@@ -9978,6 +10163,7 @@ function renderInvIntel(f){
       +`<div class="panel"><div class="alertbox">No hay movimientos de inventario (salidas, entradas o controles) en el rango filtrado. El módulo usa la columna <b>CANTIDAD REAL</b> y la columna <b>MOVIMIENTO</b> de la base <b>Salidas ALP</b>.</div></div>`;
   }
   const piscNote = f.pisc? `<div class="note" style="margin-top:6px">El inventario se gestiona a nivel de <b>bodega/sede</b>; el filtro de piscina (<b>${f.pisc}</b>) no se aplica en este acto.</div>`:"";
+  const multiSedeNote = (f.sedes && f.sedes.length>1)? `<div class="note" style="margin-top:6px">⚠ Tienes <b>${f.sedes.length} sedes</b> seleccionadas en el Marco Analítico; esta pestaña todavía muestra <b>todas</b> las sedes (limitación conocida, pendiente de resolver). "Inventario hoy", "Inventario cronológico" y "Descuadre por tramos" sí respetan el conjunto seleccionado.</div>`:"";
   let html=sectionDivider("5","El inventario","¿cuadra lo que sale con lo que hay en bodega?");
 
   /* ---------- Indicadores ejecutivos POR PRODUCTO Y SEDE ---------- */
@@ -10072,7 +10258,7 @@ function renderInvIntel(f){
   }).join('');
   const cmpStrip = chipProds.length? `<div class="cmphead">Salidas <b>ALP</b> vs <b>OFFICETRACK</b> por producto · Δ = descuadre${otLoaded?'':' <span class="nd">(OFFICETRACK no cargado — solo se toman datos de Salidas ALP)</span>'}</div><div class="cmpchips">${cmpChips}</div>` : '';
 
-  html+=`<div class="panel"><h2>Indicadores ejecutivos de inventario <span class="small">por producto · teórico (entradas − salidas) vs físico (controles)</span></h2>${piscNote}
+  html+=`<div class="panel"><h2>Indicadores ejecutivos de inventario <span class="small">por producto · teórico (entradas − salidas) vs físico (controles)</span></h2>${piscNote}${multiSedeNote}
     <div class="invexec">${execCards||'<div class="note">Sin productos con movimientos en el rango.</div>'}</div>
     ${cmpStrip}
     <div class="note" style="margin-top:8px"><b>Cómo se calcula el Descuadre actual:</b> Se toma como punto de partida el <b>último control físico previo al inicio del rango filtrado</b> (ancla). A ese valor se suman las <b>entradas registradas desde la ancla hasta el "hasta"</b> y se restan las <b>salidas del mismo tramo</b>, obteniendo el <b>teórico esperado</b>. El descuadre es la diferencia entre el <b>último control físico disponible</b> y ese teórico esperado. Si no hay entradas en el rango filtrado, se indica la última entrada anterior y cuántas salidas debieron registrarse para cuadrar; esto permite revisar en otro rango de fechas dónde pudo estar la salida faltante, sobrante o la entrada no realizada. La <b>clasificación de exactitud</b> se basa en la magnitud absoluta del descuadre: <b>Exacto</b> ≤2 kg (o litros) · <b>Descuadre leve</b> 2–20 · <b>Moderado</b> 20–40 · <b>Grave</b> 40–80 · <b>Crítico</b> &gt;80. El porcentaje del indicador circular se interpola linealmente: 0=100%, 2=90%, 20=80%, 40=60%, 80=40%, &gt;80=0%. El <b>Proyectado continuo</b> (entradas − salidas sin reinicio histórico) <b>no se modifica</b>: es referencia para conteos extraordinarios.</div></div>`;
