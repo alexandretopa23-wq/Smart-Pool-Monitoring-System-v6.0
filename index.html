@@ -5971,6 +5971,15 @@ function normPisc(raw, sede){
   const ns = normSede(sede);
   if(ns==="Girardot" && c.includes("infantil")) c="recreativa";
   if(ns==="SALVAMENTO" && c.includes("salvamento")) c="semiolimpica";
+  /* "Aquamotricidad" (con Q, grafía usada en OFFICETRACK) = "Acuamotricidad" (con C, grafía
+     del catálogo POOLS para Centro Mayor). Mismo vaso real, sin volumen nuevo — solo
+     equivalencia ortográfica. Confirmado por Alexander. Detectado en Diagnóstico →
+     Piscinas sin emparejar (134 mov. OfficeTrack, 287,4 kg sin proyectar por vaso). */
+  if(ns==="Centro Mayor" && c.includes("aquamotricidad")) c="acuamotricidad";
+  /* Cajica no tiene vaso "Infantil" en el catálogo — confirmado por Alexander que ese
+     texto de OFFICETRACK corresponde al mismo vaso que "Recreativa" (mismo patrón ya
+     usado arriba para Girardot). Detectado en Diagnóstico (56 mov. OfficeTrack, 16,44 kg). */
+  if(ns==="Cajica" && c.includes("infantil")) c="recreativa";
   return c;
 }
 function poolKey(sede,pisc){ return normSede(sede)+"||"+normPisc(pisc,sede); }
