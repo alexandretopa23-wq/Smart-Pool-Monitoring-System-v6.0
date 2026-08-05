@@ -6236,7 +6236,7 @@ let ICO_CRIT=40;          // criterio máximo aceptable de concordancia ICO (% R
 let LAB_ROT={impar:"ASEBIOL",par:"BIOPOLAB"}; // laboratorio por mes impar/par — editable en Parámetros (módulo Laboratorios)
 pimsInitAuth(); /* restaura sesión de cliente guardada en este navegador, si existe (se ejecuta ya declarados MED/MOVS/LAB/CONTRA/INFRA) */
 let TURB_MANUAL={};       // turbidez operacional medida (NTU) POR PISCINA (poolKey) — se ingresa en la sección IRO
-let DIAG={med:null,ins:null,ot:null,unmapped_prod:new Set(),unmapped_pool:new Set(),sin_vol:new Set(),infra:null,retro:null};
+let DIAG={med:null,ins:null,ot:null,unmapped_prod:new Set(),unmapped_pool:new Set(),unmapped_pool_ins:{},sin_vol:new Set(),infra:null,retro:null};
 let autoTimer=null, lastLinks={med:"",ins:"",ot:"",lab:"",contra:"",contra2:"",infra:"",retro:""};
 let SHOW_PROJ=false;
 let SHOW_ISL_DETAIL=false, SHOW_DUR_DETAIL=false, SHOW_EFIC=false, SHOW_LAB=false;
@@ -6527,6 +6527,10 @@ function renderActivos(){
 function parseInsumos(tipo,headers,data,diagKey){
   diagKey=diagKey||"ins";
   DIAG[diagKey]={headers,n:data.length,tipo};
+  /* Limpia el diagnostico de piscinas sin emparejar de ESTA fuente (diagKey) antes de
+     reparsear, para que una reconexion no acumule entradas obsoletas de una carga previa.
+     No toca las entradas de otras fuentes (ins/ot son independientes). */
+  Object.keys(DIAG.unmapped_pool_ins).forEach(k=>{ if(DIAG.unmapped_pool_ins[k].fuente===diagKey) delete DIAG.unmapped_pool_ins[k]; });
 
   const out=[];
   for(const o of data){
@@ -6546,6 +6550,22 @@ function parseInsumos(tipo,headers,data,diagKey){
     const tipoMov = mov.includes("salida")?"SALIDA":(mov.includes("entrada")?"ENTRADA":(mov.includes("control")?"CONTROL":"SALIDA"));
     const cant=num(cantRaw);
     const pool=matchPool(sedeRaw,piscRaw);
+    /* ---- Diagnostico: piscina sin emparejar en Consumo Quimico (ALP/OfficeTrack) ----
+       matchPool() puede devolver null si el nombre de sede+piscina de la hoja no
+       coincide con el catalogo POOLS (ver normSede/normPisc/matchPool). Estos
+       movimientos SI quedan en `out` (no se pierden del array MOVS/MOVS_OT ni de
+       "El consumo"), pero como no tienen `pool`, quedan excluidos de cualquier
+       calculo que exija poolPassFilter/pool (Trazabilidad OFFICETRACK vs ALP,
+       proyeccion por vaso). Se registra aqui, agregado por sede+piscina+fuente
+       con conteo y suma de cantidad, para que el modulo Diagnostico muestre el
+       impacto real (kg) de cada piscina sin reconocer, en vez de una lista muda
+       de nombres. No modifica el array `out` ni ningun calculo existente. */
+    if(!pool){
+      const piscTxt=(piscRaw||"").toString().trim()||"(vacío)";
+      const key=normSede(sedeRaw)+"|"+piscTxt+"|"+diagKey;
+      const reg=DIAG.unmapped_pool_ins[key]||(DIAG.unmapped_pool_ins[key]={sede:normSede(sedeRaw),pisc:piscTxt,fuente:diagKey,tipoMovLbl:tipo,n:0,kg:0});
+      reg.n++; if(cant!=null) reg.kg+=cant;
+    }
     out.push({
       fecha:parseFecha(fechaRaw), tipo:tipoMov, prod:pinfo.canon, label:pinfo.label, unit:pinfo.unit,
       cant:cant, sede:normSede(sedeRaw), pisc:piscRaw, pool, usuario:(usrRaw||"").toString().trim(), obs:(obsRaw||"").toString().trim()
@@ -10795,6 +10815,15 @@ function renderConsTraza(f){
     </div>
     <div class="labcards">`;
   html += otHtml.replace(alertRe, resumen);
+  /* Aviso corto (no bloqueante) si hay movimientos de ALP/OFFICETRACK excluidos de este
+     total por piscina sin emparejar — evita que el descuadre parezca un error de conteo
+     cuando en realidad es un nombre de piscina que no matchea el catálogo POOLS. El
+     detalle completo (sede, piscina, fuente, kg) vive en Diagnóstico. */
+  const upiTraza=Object.values(DIAG.unmapped_pool_ins).filter(r=>r.fuente==='ins'||r.fuente==='ot');
+  if(upiTraza.length){
+    const kgTraza=upiTraza.reduce((a,r)=>a+r.kg,0), nTraza=upiTraza.reduce((a,r)=>a+r.n,0);
+    html += `<div class="alertbox" style="margin-top:8px">⚠ <b>${nTraza} movimiento${nTraza===1?'':'s'} (${v(kgTraza,2)} kg/L)</b> de ALP/OFFICETRACK no entran en los totales de esta pestaña porque su piscina no coincide con el catálogo — ver <b>Diagnóstico → Piscinas sin emparejar en Consumo Químico</b> para el detalle por sede.</div>`;
+  }
   return html;
 }
 
@@ -11241,6 +11270,25 @@ function renderDiag(){
     html+=`<div class="diag-grp"><h3>Piscinas sin emparejar</h3>`;
     html+=[...DIAG.unmapped_pool].slice(0,40).map(p=>`<span class="chip bad">${p}</span>`).join("");
     html+=`<div class="note">No coinciden con la lista oficial. Sus movimientos cuentan para el consumo de la sede, pero no para la proyección por vaso.</div></div>`;
+  }
+  /* ---- Piscinas sin emparejar en Consumo Químico (ALP / OfficeTrack) ----
+     Fuente: DIAG.unmapped_pool_ins, poblado en parseInsumos() (ver nota ahí).
+     A diferencia del bloque de Mediciones de arriba (solo nombres), aquí se
+     muestra el IMPACTO real en kg/L: cuántos movimientos y cuánta cantidad de
+     cada sede+piscina quedó fuera de Trazabilidad (OFFICETRACK vs ALP) y de la
+     proyección por vaso, aunque sí se sumó en "El consumo" y en el inventario
+     por sede. Ordenado de mayor a menor cantidad para priorizar la corrección. */
+  const upi=Object.values(DIAG.unmapped_pool_ins);
+  if(upi.length){
+    const fuenteLbl={ins:'ALP',ot:'OfficeTrack'};
+    const rows=[...upi].sort((a,b)=>b.kg-a.kg).map(r=>
+      `<tr><td>${r.sede}</td><td><b>${r.pisc}</b></td><td>${fuenteLbl[r.fuente]||r.fuente}</td><td style="text-align:center">${r.n}</td><td style="text-align:right">${v(r.kg,2)}</td></tr>`
+    ).join("");
+    const totKg=upi.reduce((a,r)=>a+r.kg,0), totN=upi.reduce((a,r)=>a+r.n,0);
+    html+=`<div class="diag-grp"><h3>Piscinas sin emparejar en Consumo Químico (ALP / OfficeTrack)</h3>
+      <div class="tablewrap"><table class="ottbl"><thead><tr><th>Sede</th><th>Piscina (texto en la hoja)</th><th>Fuente</th><th>Movimientos</th><th>Σ cantidad</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="alertbox" style="margin-top:8px"><b>${totN} movimiento${totN===1?'':'s'} · ${v(totKg,2)} kg/L</b> quedan fuera de la <b>pestaña Trazabilidad</b> (OFFICETRACK vs ALP) y de la <b>proyección por vaso</b>, porque el nombre de sede+piscina que trae la hoja no coincide con el catálogo <code>POOLS</code> (ver <code>normSede()</code>/<code>normPisc()</code>). Sí se cuentan en "El consumo" y en el inventario por sede (esos cálculos no exigen piscina emparejada). Para corregirlo: o bien ajusta el nombre en la hoja de origen para que coincida con el catálogo oficial, o pide agregar la piscina/equivalencia al catálogo si es un vaso real que falta.</div>
+      </div>`;
   }
   html+=`</div>`;
   cont.innerHTML=html;
@@ -19642,7 +19690,7 @@ function loadDemo(){
   const lo=document.getElementById("linkOT"); if(lo)lo.value="";
   const ll=document.getElementById("linkLab"); if(ll)ll.value=""; const lc=document.getElementById("linkContra"); if(lc)lc.value="";
   const li2=document.getElementById("linkInfra"); if(li2)li2.value="";
-  DIAG={med:null,ins:null,ot:null,unmapped_prod:new Set(),unmapped_pool:new Set(),sin_vol:new Set(),infra:null,retro:null};
+  DIAG={med:null,ins:null,ot:null,unmapped_prod:new Set(),unmapped_pool:new Set(),unmapped_pool_ins:{},sin_vol:new Set(),infra:null,retro:null};
   RETRO={}; DEMANDA_MANUAL=null; TURB_MANUAL={}; MOVS_OT=[];
   document.getElementById("fDesde").value="";document.getElementById("fHasta").value="";document.getElementById("fSede").value="";document.getElementById("fPisc").value="";
   let r=toObjects(parseCSV(DEMO_MED)); MED=parseMediciones(r.headers,r.data);
