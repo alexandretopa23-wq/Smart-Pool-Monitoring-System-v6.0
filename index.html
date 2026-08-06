@@ -5603,9 +5603,15 @@ const POOLS = [
  ["220","Recreativa 1",35,"Normal"],["220","Recreativa 2",35,"Normal"],
  ["Girardot","Recreativa",40,"Normal"],["CAFAM","Semiolimpica",433,"Normal"],
  ["CAFAM","Infantil",73,"Normal"],["SALVAMENTO","Semiolimpica",500,"Normal"],
+ /* FUENTES: sede activa sin injerencia en Res. 234/2026 (confirmado por Alexander) —
+    sus lecturas de pH/cloro/etc. no representan incumplimiento normativo real. Vaso
+    único, mismo nombre que la sede. tipo "Normal" es un valor por defecto neutro (el
+    más permisivo del catálogo) para el caso de que algún módulo de mediciones llegue
+    a evaluarla contra rango(); no implica que la sede SÍ deba cumplir Res. 234. */
+ ["Fuentes","Fuentes",365,"Normal"],
 ].map(a=>({sede:a[0],piscina:a[1],vol:a[2],tipo:a[3]}));
 
-const SEDE_ORDER = ["CUR","CALLE 94","Mofli","Suba","Carrera 60","Centro Mayor","Cajica","220","Girardot","CAFAM","SALVAMENTO"];
+const SEDE_ORDER = ["CUR","CALLE 94","Mofli","Suba","Carrera 60","Centro Mayor","Cajica","220","Girardot","CAFAM","SALVAMENTO","Fuentes"];
 
 /* =================================================================
    PIMS · CONTROL DE ACCESO POR CLIENTE (100% client-side)
@@ -6558,7 +6564,24 @@ function parseInsumos(tipo,headers,data,diagKey){
     const mov=clean(movRaw||"salida");
     const tipoMov = mov.includes("salida")?"SALIDA":(mov.includes("entrada")?"ENTRADA":(mov.includes("control")?"CONTROL":"SALIDA"));
     const cant=num(cantRaw);
-    const pool=matchPool(sedeRaw,piscRaw);
+    let pool=matchPool(sedeRaw,piscRaw);
+    let sedeEfectiva=normSede(sedeRaw);
+    /* ---- Reasignación FUENTES (confirmado por Alexander) ----
+       FUENTES es una sede activa (vaso único "Fuentes", 365 m³) que, mientras no tenga
+       teléfono corporativo propio, hace registrar sus descuentos en OFFICETRACK bajo
+       MOFLI (o su alias CEF, ver normSede) — específicamente en el vaso "Recreativa 1"
+       de esa sede — dejando la palabra "FUENTES" en OBSERVACIONES como única marca de
+       a qué sede pertenece realmente el consumo. Se reasigna aquí a la sede/vaso FUENTES
+       real, sin importar lo que digan las columnas SEDE/PISCINA de origen. La condición
+       es permanente y textual (Recreativa 1 de MOFLI + "FUENTES" en observaciones), NO
+       una fecha de corte: si en el futuro FUENTES obtiene celular propio y deja de
+       aparecer bajo MOFLI, esta regla simplemente deja de encontrar coincidencias por sí
+       sola — no hace falta desactivarla. NO afecta otros movimientos de MOFLI/Recreativa 1
+       que no traigan esa palabra en observaciones. */
+    if(pool && sedeEfectiva==="Mofli" && pool.piscina==="Recreativa 1" && /\bfuentes\b/i.test((obsRaw||"").toString())){
+      sedeEfectiva="Fuentes";
+      pool=matchPool("Fuentes","Fuentes");
+    }
     /* ---- Diagnostico: piscina sin emparejar en Consumo Quimico (ALP/OfficeTrack) ----
        matchPool() puede devolver null si el nombre de sede+piscina de la hoja no
        coincide con el catalogo POOLS (ver normSede/normPisc/matchPool). Estos
@@ -6577,7 +6600,7 @@ function parseInsumos(tipo,headers,data,diagKey){
     }
     out.push({
       fecha:parseFecha(fechaRaw), tipo:tipoMov, prod:pinfo.canon, label:pinfo.label, unit:pinfo.unit,
-      cant:cant, sede:normSede(sedeRaw), pisc:piscRaw, pool, usuario:(usrRaw||"").toString().trim(), obs:(obsRaw||"").toString().trim()
+      cant:cant, sede:sedeEfectiva, pisc:piscRaw, pool, usuario:(usrRaw||"").toString().trim(), obs:(obsRaw||"").toString().trim()
     });
   }
   return out;
